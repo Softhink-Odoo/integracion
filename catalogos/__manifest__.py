@@ -3,15 +3,14 @@
     'name': "catalogos",
 
     'summary': """
-        Short (1 phrase/line) summary of the module's purpose, used as
-        subtitle on modules listing or apps.openerp.com""",
+        Contiene los Catalogos requeridos por el SAT para la facturacion en 3.3""",
 
     'description': """
-        Long description of module's purpose
+        El modulo esta integrado al portal de Sft-Facturacion, heredando toda la funcionalidad tanto en el portal en linea, como en el modulo dentro de Odoo.
     """,
 
-    'author': "My Company",
-    'website': "http://www.yourcompany.com",
+    'author': "Softhink",
+    'website': "http://www.sft.com.mx",
 
     # Categories can be used to filter modules in modules listing
     # Check https://github.com/odoo/odoo/blob/master/odoo/addons/base/module/module_data.xml
@@ -67,4 +66,5 @@
     'demo': [
          
     ],
+	"images":['static/description/Integracion4.jpg'],
 }
