@@ -1,0 +1,48 @@
+<odoo>
+  <data>
+    <record model='ir.ui.view' id='catalogos_uso_cfdi_tree'>
+      <field name='name'>catalogos.uso_cfdi.tree</field>
+      <field name='model'>catalogos.uso_cfdi</field>
+      <field name='arch' type='xml'>
+        <tree>
+          <field name='c_uso_cfdi'/>
+          <field name='descripcion'/>
+          <field name='fisica'/>
+          <field name='moral'/>
+          <field name='fecha_inicio_vigencia'/>
+          <field name='fecha_fin_vigencia'/>
+        </tree>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="catalogos_uso_cfdi_form">
+      <field name="name">catalogos.uso_cfdi.form</field>
+      <field name="model">catalogos.uso_cfdi</field>
+      <field name="arch" type="xml">
+        <form string="description">
+          <header>
+          </header>
+          <sheet>
+            <group> 
+               <field name='c_uso_cfdi'/>
+               <field name='descripcion'/>
+               <field name='fisica'/>
+               <field name='moral'/>
+               <field name='fecha_inicio_vigencia'/>
+               <field name='fecha_fin_vigencia'/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+      
+      <record id="action_catalogos_uso_cfdi" model="ir.actions.act_window">
+        <field name="name">Catalogos Uso de CFDI</field>
+        <field name="res_model">catalogos.uso_cfdi</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">tree,form</field>
+      </record>
+
+      <menuitem id="catalogos_menu_uso_cfdi" name="Uso CFDI" parent="catalogos_menu_principal" action="action_catalogos_uso_cfdi"/>
+  </data>
+</odoo>

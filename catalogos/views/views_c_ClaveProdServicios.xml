@@ -1,0 +1,52 @@
+<odoo>
+  <data>
+    <record model='ir.ui.view' id='catalogos_clave_prod_serv_tree'>
+      <field name='name'>catalogos.clave_prod_serv.tree</field>
+      <field name='model'>catalogos.clave_prod_serv</field>
+      <field name='arch' type='xml'>
+        <tree>
+          <field name='c_claveprodserv'/>
+          <field name='descripcion'/>
+          <field name='fechainiciovigencia'/>
+          <field name='fechafinvigencia'/>
+          <field name='incluir_iva_trasladado'/>
+          <field name='incluir_ieps_trasladado'/>
+          <field name='complemento_que_debe_incluir'/>
+          <field name="palabras_similares"/>
+        </tree>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="catalogos_clave_prod_serv_form">
+      <field name="name">catalogos.clave_prod_serv.form</field>
+      <field name="model">catalogos.clave_prod_serv</field>
+      <field name="arch" type="xml">
+        <form string="description">
+          <header>
+          </header>
+          <sheet>
+            <group>
+               <field name='c_claveprodserv'/>
+               <field name='descripcion'/>
+               <field name='fechainiciovigencia'/>
+               <field name='fechafinvigencia'/>
+               <field name='incluir_iva_trasladado'/>
+               <field name='incluir_ieps_trasladado'/>
+               <field name='complemento_que_debe_incluir'/>
+               <field name="palabras_similares"/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+      
+      <record id="action_catalogos_clave_prod_serv" model="ir.actions.act_window">
+        <field name="name">Catalogos Clave de Productos y Servicios</field>
+        <field name="res_model">catalogos.clave_prod_serv</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">tree,form</field>
+      </record>
+
+      <menuitem id="catalogos_c_ClaveProdServicios_menu_aduanas" name="Productos y Servicios" parent="catalogos_menu_principal" action="action_catalogos_clave_prod_serv"/>
+  </data>
+</odoo>

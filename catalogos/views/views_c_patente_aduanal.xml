@@ -1,0 +1,42 @@
+<odoo>
+  <data>
+    <record model='ir.ui.view' id='catalogos_patente_aduanal_tree'>
+      <field name='name'>catalogos.patente_aduanal.tree</field>
+      <field name='model'>catalogos.patente_aduanal</field>
+      <field name='arch' type='xml'>
+        <tree>
+          <field name='c_patente_aduanal'/>
+          <field name='fecha_inicio_vigencia'/>
+          <field name='fecha_fin_vigencia'/>
+        </tree>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="catalogos_patente_aduanal_form">
+      <field name="name">catalogos.patente_aduanal.form</field>
+      <field name="model">catalogos.patente_aduanal</field>
+      <field name="arch" type="xml">
+        <form string="description">
+          <header>
+          </header>
+          <sheet>
+            <group>
+               <field name='c_patente_aduanal'/>
+               <field name='fecha_inicio_vigencia'/>
+               <field name='fecha_fin_vigencia'/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+      
+      <record id="action_catalogos_patente_aduanal" model="ir.actions.act_window">
+        <field name="name">Catalogos Patentes Aduanales</field>
+        <field name="res_model">catalogos.patente_aduanal</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">tree,form</field>
+      </record>
+
+      <menuitem id="catalogos_menu_patente_aduanal" name="Patente Aduanal" parent="catalogos_menu_principal" action="action_catalogos_patente_aduanal"/>
+  </data>
+</odoo>
