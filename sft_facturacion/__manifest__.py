@@ -36,5 +36,4 @@
     'demo': [
        
     ],
-	"images":['static/description/Integracion4.jpg'],
 }
