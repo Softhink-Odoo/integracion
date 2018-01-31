@@ -3,10 +3,10 @@
     'name': "catalogos",
 
     'summary': """
-        Contiene los Catalogos requeridos por el SAT para la facturación en 3.3""",
+        Contiene los Catalogos requeridos por el SAT para la facturacion en 3.3""",
 
     'description': """
-        Long description of module's purpose
+        El modulo esta integrado al portal de Sft-Facturacion, heredando toda la funcionalidad tanto en el portal en linea, como en el modulo dentro de Odoo.
     """,
 
     'author': "Softhink",
@@ -66,4 +66,5 @@
     'demo': [
          
     ],
+	"images":['static/description/Integracion4.jpg'],
 }
