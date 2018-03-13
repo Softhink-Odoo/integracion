@@ -1,0 +1,3 @@
+id,c_metodo_pago,descripcion,fecha_inicio_vigencia,fecha_fin_vigencia
+catalogos.metodo_pago1,PUE,Pago en una sola exhibición,2017-01-01,
+catalogos.metodo_pago2,PPD,Pago en parcialidades o diferido,2017-01-01,
