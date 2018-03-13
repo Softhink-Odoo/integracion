@@ -1,0 +1,4 @@
+id,c_impuesto,descripcion,retencion,traslado,local_o_federal,entidad_en_quien_se_aplica
+catalogos_impuestos1,001,ISR,Si,No,Federal,
+catalogos_impuestos2,002,IVA,Si,Si,Federal,
+catalogos_impuestos3,003,IEPS,Si,Si,Federal,

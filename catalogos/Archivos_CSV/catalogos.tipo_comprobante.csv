@@ -1,0 +1,7 @@
+id,c_tipo_de_comprobante,descripcion,valor_maximo1,valor_maximo2,fecha_inicio_vigencia,fecha_fin_vigencia
+catalogos_tipo_comprobante1,I,Ingreso,100000000,,2017-01-01,
+catalogos_tipo_comprobante2,E,Egreso,100000000,,2017-01-01,
+catalogos_tipo_comprobante3,T,Traslado,0,,2017-01-01,
+catalogos_tipo_comprobante4,N,Nómina,NS,NdS,2017-01-01,
+catalogos_tipo_comprobante5,N,Nómina,400000,2000000,2017-01-01,
+catalogos_tipo_comprobante6,P,Pago,100000000,,2017-01-01,
