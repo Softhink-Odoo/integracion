@@ -13,8 +13,9 @@
 
                 <xpath expr="//field[@name='street']" position="after">
                     <field name="colonia" placeholder="Colonia"/>
-                    <field name="numero_int" placeholder="No. Interior"/>
+
                     <field name="numero_ext" placeholder="No. Exterior"/>
+                    <field name="numero_int" placeholder="No. Interior"/>
                 </xpath>
 
 
@@ -37,7 +38,17 @@
                             <field name="uso_cfdi_id"/>
                         </group>
                     </page>
+
+                    <page name="partner_notifica_ids" string="Notificaciones">
+                        <field name="partner_notifica_ids" nolabel="1" widget="one2many_list" mode="tree" >
+                                <tree string="Invoice Lines" editable="bottom">
+                                    <field name="correo"/>
+                                </tree>
+                        </field>
+                    </page>
                 </xpath>
+
+
 
             </field>
         </record>
@@ -54,6 +65,8 @@
 
             </field>
         </record>
+
+
 
    <!--Nueva Factura Electronica-->    
 

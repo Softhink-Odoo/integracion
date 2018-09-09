@@ -20,14 +20,16 @@ from odoo.exceptions import UserError, RedirectWarning, ValidationError
 import odoo.addons.decimal_precision as dp
 import logging
 
-_logger = logging.getLogger(__name__)
+
 
 
 #Agrega al formulario los capos requeridos por el Sat
 class localizacion_mexicana(models.Model):
     _name = 'account.invoice'
     _inherit = ['account.invoice']
-    
+
+    _logger = logging.getLogger(__name__)
+
     uuid = fields.Char(string="UUID")
     cfdi_relacionados = fields.Char(string='CFDI Relacionados')
     #Variables del receptor
@@ -68,6 +70,7 @@ class localizacion_mexicana(models.Model):
             ('timbrada', 'CFDI'),
             ('timbrado cancelado', 'CFDI Cancelado'),
             ('open', 'Open'),
+            ('validate', 'Validada'),
             ('paid', 'Paid'),
             ('cancel', 'Cancelled'),
         ], string='Status', index=True, readonly=True, default='draft',
@@ -84,10 +87,11 @@ class localizacion_mexicana(models.Model):
     fac_id = fields.Char()
     observaciones = fields.Text(string='Observaciones')
     tipo_de_relacion_id = fields.Many2one('catalogos.tipo_relacion',string='Tipo de Relacion')
-    pdf ="Factura?Accion=descargaPDF&fac_id=";
-    xml ="Factura?Accion=ObtenerXML&fac_id=";
-    fac_timbrada = fields.Char('CFDI',default="Sin Timbrar",readonly=True)
-    
+    pdf ="Factura?Accion=descargaPDF&factura=";
+    xml ="Factura?Accion=ObtenerXML&factura=";
+    fac_timbrada = fields.Char('CFDI',default="Sin Timbrar",readonly=True, copy=False)
+    #fac_estatus_cancelacion = fields.Char("Estatus Cancelación",default="", copy=False)
+
     #Carga El RFC del Cliente Seleccionado
     @api.onchange('partner_id')
     def _onchange_rfc_emisor(self):
@@ -105,9 +109,95 @@ class localizacion_mexicana(models.Model):
     def limpiar_uuid_al_duplicar_factura(self):
         if self.state == 'draft':
             self.uuid = False
+            self.fac_timbrada = 'Sin Timbrar';
+
+    @api.multi
+    def timbrar(self):
+        print("Timbrar")
+        print(self.state)
+        print("Simona")
+        if self.state not in ['proforma2', 'draft', 'validate']:
+            raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
+        self.action_date_assign()
+        self.action_move_create()
+        return self.invoice_validate()
+
+
+
+    @api.multi
+    def reeenviar_factura(self):
+        arr_notifica = [];
+        for notifica in self.partner_id.partner_notifica_ids:
+            arr_notifica.append(notifica["correo"]);
+
+        if len(arr_notifica) == 0:
+            raise UserError(_("No se han configurado destinatarios al cliente"))
+
+        self.url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
+
+        usuario = self.url_parte.usuario
+        contrasena=self.url_parte.contrasena
+        string=str(contrasena.encode("utf-8"))
+        algorithim=hashlib.md5()
+        algorithim.update(string)
+        encrypted=algorithim.hexdigest()
+
+        factura = str(self.fac_id);
+        algorithim=hashlib.md5()
+        algorithim.update( str(factura.encode("utf-8")) )
+        factura = algorithim.hexdigest()
+
+
+        data = {
+            "factura": factura,
+            "usuario":usuario,
+            "contrasena": encrypted,
+            "emisor" : str(self.rfc_emisor),
+            "destinatarios":arr_notifica
+
+        };
+        url = str(self.url_parte.url)+"webresources/FacturacionWS/NotificarFacturacion"
+        _logger = logging.getLogger(__name__)
+        _logger.info(data)
+
+        headers = {
+           'content-type': "application/json;charset=iso-8859-1", 'Authorization':"Basic YWRtaW46YWRtaW4="
+        }
+
+        # if True:
+        #     return {
+        #         "warning":{
+        #             "title": "Key Length",
+        #             "message": "The length of key is not match",
+        #         },
+        #     }
+
+        _logger = logging.getLogger(__name__)
+        _logger.info(data)
+        response = requests.request("POST", url, data=json.dumps(data), headers=headers)
+        _logger.info(response.text)
+        json_data = json.loads(response.text)
+        #Valida que la factura haya sido timbrada Correctamente
+        if json_data['result']['success']== 'true':
+            return {
+                'warning': {
+                'title': 'Warning!',
+                'message': 'The warning text'}
+            }
+        else:
+            raise ValidationError(json_data['result']['message'])
+
+
+
 
     @api.multi
     def timbrar_factura(self):
+        precision = self.env['decimal.precision'].search([('name', '=','Product Price')])
+        if precision == False or precision == None or precision.digits == None:
+            raise UserError(_("No se encontró la precisión del producto"))
+
+        decimales = precision.digits;
+
 
         self.url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
         usuario = self.url_parte.usuario
@@ -120,7 +210,7 @@ class localizacion_mexicana(models.Model):
         #La decodifica en formato hexadecimal
         encrypted=algorithim.hexdigest()
         conceptos = []
-        receptor = ""
+        receptor = {}
         if self.partner_id.nif!= False:
             receptor = {
             "receptor_id": self.rfc_cliente_factura,
@@ -146,9 +236,12 @@ class localizacion_mexicana(models.Model):
             "numero_ext":self.partner_id.numero_ext,
             "estado":self.partner_id.state_id.name.encode('utf-8'),
         }
+        if self.partner_id.numero_int != None and self.partner_id.numero_int != False:
+            receptor["numero_int"] = self.partner_id.numero_int;
 
-
-        
+        arr_notifica = [];
+        for notifica in self.partner_id.partner_notifica_ids:
+            arr_notifica.append(notifica["correo"]);
 
         descuento_acumulado = 0.0
         total_acumulado = 0.0
@@ -159,31 +252,42 @@ class localizacion_mexicana(models.Model):
         mpuesto_retenido = 0.0
 
         for conceptos_record in self.invoice_line_ids:
-        
+
             importe= conceptos_record.price_unit*conceptos_record.quantity
             importe_acumulado = importe_acumulado+importe
             impuestos = []
             descuento = importe*((conceptos_record.discount)/100)
             descuento_acumulado = descuento_acumulado+descuento
             subtotal = importe
-            
-            for impuestos_record in conceptos_record.invoice_line_tax_ids:
 
-                iva = importe * (((impuestos_record.amount) / 100))
+            for impuestos_record in conceptos_record.invoice_line_tax_ids:
+                if impuestos_record.traslado_retenido == None or impuestos_record.traslado_retenido ==  False:
+                    raise ValidationError("FACT00001: El impuesto %s no  tiene asignado si es Traslado o Retencion" % (impuestos_record.name))
+
+
+                #Modificación, la base se genera el importe - descuento
+                traslado_base = importe - descuento;
+
+                iva = traslado_base * (((impuestos_record.amount) / 100))
+                iva = round(iva,decimales)
                 impuesto_acumulado = impuesto_acumulado + iva
                 total = subtotal + iva
                 total_acumulado = total_acumulado + total
 
+
+
                 #ImpuestosXConcepto
                 impuestosxconcepto = {
-                "traslado_base": str(importe),
-                "con_importe_iva": str(iva),
-                "descripcion_impuesto": str((impuestos_record.tipo_impuesto_id.descripcion.encode('utf-8'))),
-                "tipo_tasaocuota": impuestos_record.tasa_o_cuota_id.valor_maximo,
-                "tipo_factor": impuestos_record.tipo_factor_id.tipo_factor,
-                "clave_impuesto": impuestos_record.tipo_impuesto_id.c_impuesto,
+                    "traslado_base": str(traslado_base),
+                    "con_importe_iva": str(iva),
+                    "descripcion_impuesto": str((impuestos_record.tipo_impuesto_id.descripcion.encode('utf-8'))),
+                    "tipo_tasaocuota": impuestos_record.tasa_o_cuota_id.valor_maximo,
+                    "tipo_factor": impuestos_record.tipo_factor_id.tipo_factor,
+                    "clave_impuesto": impuestos_record.tipo_impuesto_id.c_impuesto,
+                    "tipo_impuesto":impuestos_record.traslado_retenido
                 }
                 impuestos.append(impuestosxconcepto)
+
 
          # ConceptosXFactura
             concepto = {"con_cantidad": str(conceptos_record.quantity), "con_descripcion": str(conceptos_record.name.encode("utf-8")),
@@ -192,12 +296,17 @@ class localizacion_mexicana(models.Model):
                     "con_subtotal": str(subtotal), "con_importe": str(importe),
                     "con_total": str(conceptos_record.price_subtotal), "tipo_cambio": self.currency_id.rate,
                     "con_has_impuesto":1,
-                    "no_identificacion":str((conceptos_record.product_id.default_code).encode('utf-8')),
+                    #"no_identificacion":str((conceptos_record.product_id.default_code).encode('utf-8')),
+                    #"no_identificacion":str((no_identificador).encode('utf-8')),
                     "con_clave_prod_serv": str(conceptos_record.product_id.clave_prod_catalogo_sat_id.c_claveprodserv),
                     "impuestosxconcepto": impuestos,
                     }
+
+            if conceptos_record.no_identificacion!= None and conceptos_record.no_identificacion != False:
+                concepto["no_identificacion"] = str((conceptos_record.no_identificacion).encode('utf-8'));
+
             conceptos.append(concepto)
-        
+
         #Estructura JSON para timbrar la Factura
         url = str(self.url_parte.url)+"webresources/FacturacionWS/Facturar"
         print (str(self.currency_id.rate))
@@ -208,7 +317,7 @@ class localizacion_mexicana(models.Model):
             self.observaciones = ""
 
         data = {
-        "factura": { 
+        "factura": {
         "receptor_uso_cfdi": self.uso_cfdi_id.c_uso_cfdi,
         "user_odoo":usuario,
         "fac_no_orden": self.number,
@@ -219,7 +328,7 @@ class localizacion_mexicana(models.Model):
         "fac_porcentaje_iva" : impuesto_acumulado,
         "fac_descuento" : descuento_acumulado,
         "fac_emisor_regimen_fiscal_key" : self.env.user.company_id.property_account_position_id.c_regimenfiscal,
-        "fac_emisor_regimen_fiscal_descripcion": self.env.user.company_id.property_account_position_id.name,   
+        "fac_emisor_regimen_fiscal_descripcion": self.env.user.company_id.property_account_position_id.name,
         "fecha_facturacion" : self.date_invoice,
         "fac_observaciones" : self.observaciones,
         "fac_forma_pago_key" : self.forma_pago_id.c_forma_pago,
@@ -229,19 +338,20 @@ class localizacion_mexicana(models.Model):
         "fac_tipo_cambio": self.currency_id.rate,
         "fac_lugar_expedicion": self.codigo_postal_id.c_codigopostal,
         "conceptos" :
-            conceptos
-        
+            conceptos,
+        "destinatarios":arr_notifica
+
        }
 
     }
-        
+
         headers = {
-           'content-type': "application/json", 'Authorization':"Basic YWRtaW46YWRtaW4="
+           'content-type': "application/json;charset=iso-8859-1", 'Authorization':"Basic YWRtaW46YWRtaW4="
     }
 
-
+        _logger = logging.getLogger(__name__)
+        _logger.info(data)
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
-        print data
         json_data = json.loads(response.text)
         #Valida que la factura haya sido timbrada Correctamente
         if json_data['result']['success']== 'true':
@@ -254,9 +364,15 @@ class localizacion_mexicana(models.Model):
         else:
             raise ValidationError(json_data['result']['message'])
 
-    
+
     @api.multi
-    def timbrar_nota_de_credito(self):
+    def timbrar_nota_de_credito(self,nota_de_credito):
+
+        precision = self.env['decimal.precision'].search([('name', '=','Product Price')])
+        if precision == False or precision == None or precision.digits == None:
+            raise UserError(_("No se encontró la precisión del producto"))
+
+        decimales = precision.digits;
 
         self.url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
         usuario = self.url_parte.usuario
@@ -311,34 +427,37 @@ class localizacion_mexicana(models.Model):
         mpuesto_retenido = 0.0
 
         for conceptos_record in self.invoice_line_ids:
-        
+
             importe= conceptos_record.price_unit*conceptos_record.quantity
             importe_acumulado = importe_acumulado+importe
             impuestos = []
             descuento = importe*((conceptos_record.discount)/100)
             descuento_acumulado = descuento_acumulado+descuento
             subtotal = importe
-            
+
             for impuestos_record in conceptos_record.invoice_line_tax_ids:
 
                 iva = importe * (((impuestos_record.amount) / 100))
+                iva = round(iva,decimales)
                 impuesto_acumulado = impuesto_acumulado + iva
                 total = subtotal + iva
                 total_acumulado = total_acumulado + total
 
                 #ImpuestosXConcepto
                 impuestosxconcepto = {
-                "traslado_base": str(importe),
-                "con_importe_iva": str(iva),
-                "descripcion_impuesto": str((impuestos_record.tipo_impuesto_id.descripcion.encode('utf-8'))),
-                "tipo_tasaocuota": impuestos_record.tasa_o_cuota_id.valor_maximo,
-                "tipo_factor": impuestos_record.tipo_factor_id.tipo_factor,
-                "clave_impuesto": impuestos_record.tipo_impuesto_id.c_impuesto,
+                    "traslado_base": str(importe),
+                    "con_importe_iva": str(iva),
+                    "descripcion_impuesto": str((impuestos_record.tipo_impuesto_id.descripcion.encode('utf-8'))),
+                    "tipo_tasaocuota": impuestos_record.tasa_o_cuota_id.valor_maximo,
+                    "tipo_factor": impuestos_record.tipo_factor_id.tipo_factor,
+                    "clave_impuesto": impuestos_record.tipo_impuesto_id.c_impuesto,
+                    "tipo_impuesto":impuestos_record.traslado_retenido
                 }
                 impuestos.append(impuestosxconcepto)
 
             print "Referencia Interna"
             print conceptos_record.product_id.default_code.encode('utf-8')
+
          # ConceptosXFactura
             concepto = {"con_cantidad": str(conceptos_record.quantity), "con_descripcion": str(conceptos_record.name.encode("utf-8")),
                     "con_unidad_clave": str(conceptos_record.product_id.clave_unidad_clave_catalogo_sat_id.c_claveunidad),
@@ -346,11 +465,17 @@ class localizacion_mexicana(models.Model):
                     "con_subtotal": str(subtotal), "con_importe": str(importe),
                     "con_total": str(conceptos_record.price_subtotal), "tipo_cambio": self.currency_id.rate,
                     "con_has_impuesto":1,
-                    "no_identificacion":str((conceptos_record.product_id.default_code).encode('utf-8')),
+                    #"no_identificacion":str((conceptos_record.product_id.default_code).encode('utf-8')),
+                    #"no_identificacion":str((no_identificador).encode('utf-8')),
                     "con_clave_prod_serv": str(conceptos_record.product_id.clave_prod_catalogo_sat_id.c_claveprodserv),
-                    "con_descripcion":"test Nota de Credito",
+                    "con_descripcion":"Nota de Credito:Referencia Factura "+str(self.number)+" con motivo de "+str(nota_de_credito),
                     "impuestosxconcepto": impuestos,
                     }
+
+            if conceptos_record.no_identificacion!= None and conceptos_record.no_identificacion != False:
+                concepto["no_identificacion"] = str((conceptos_record.no_identificacion).encode('utf-8'));
+
+
             conceptos.append(concepto)
         
         #Estructura JSON para timbrar la Factura
@@ -391,10 +516,11 @@ class localizacion_mexicana(models.Model):
         headers = {
            'content-type': "application/json", 'Authorization':"Basic YWRtaW46YWRtaW4="
     }
-
+        self._logger.info(data)
 
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
         json_data = json.loads(response.text)
+        self._logger.info(json_data)
         #Valida que la factura haya sido timbrada Correctamente
         if json_data['result']['success']== 'true':
             self.state = 'timbrada'
@@ -409,7 +535,13 @@ class localizacion_mexicana(models.Model):
     def descargar_factura_pdf(self):
 
         url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
-        url_descarga_pdf = url_parte.url+self.pdf+self.fac_id
+
+        string=str(str(self.fac_id).encode("utf-8"))
+        algorithim=hashlib.md5()
+        algorithim.update(string)
+        encrypted=algorithim.hexdigest()
+
+        url_descarga_pdf = url_parte.url+self.pdf+encrypted
         return {
             'type': 'ir.actions.act_url',
             'url': url_descarga_pdf,
@@ -420,12 +552,55 @@ class localizacion_mexicana(models.Model):
     def descargar_factura_xml(self):
         
         url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
-        url_descarga_xml = url_parte.url+self.xml+self.fac_id
+
+        string=str(str(self.fac_id).encode("utf-8"))
+        algorithim=hashlib.md5()
+        algorithim.update(string)
+        encrypted=algorithim.hexdigest()
+
+        url_descarga_xml = url_parte.url+self.xml+encrypted
         return {
             'type': 'ir.actions.act_url',
             'url': url_descarga_xml,
             'target': 'new',
         }
+
+    @api.multi
+    def validar(self):
+        print("Entra a validar");
+        # lots of duplicate calls to action_invoice_open, so we remove those already open
+        to_open_invoices = self.filtered(lambda inv: inv.state != 'open')
+        if to_open_invoices.filtered(lambda inv: inv.state not in ['proforma2', 'draft']):
+            raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
+        to_open_invoices.action_date_assign()
+        to_open_invoices.action_move_create()
+        for invoice in self:
+            #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
+            #because it's probably a double encoding of the same bill/refund
+            if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
+                if self.search([('type', '=', invoice.type), ('reference', '=', invoice.reference), ('company_id', '=', invoice.company_id.id), ('commercial_partner_id', '=', invoice.commercial_partner_id.id), ('id', '!=', invoice.id)]):
+                    raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
+        return self.write({'state': 'validate'})
+
+
+        #Cambia el Estado de Borrador a Validado
+        #for invoice in self:
+            #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
+            #because it's probably a double encoding of the same bill/refund
+        #    if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
+        #        if self.search([('type', '=', invoice.type), ('reference', '=', invoice.reference), ('company_id', '=', invoice.company_id.id), ('commercial_partner_id', '=', invoice.commercial_partner_id.id), ('id', '!=', invoice.id)]):
+        #            raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
+        #return self.write({'state': 'validate'})
+        #super(account_invoice, self).invoice_validate();
+        #Cambia el Estado de Borrador a Validado
+        #for invoice in self:
+            #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
+            #because it's probably a double encoding of the same bill/refund
+        #    if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
+        #        if self.search([('type', '=', invoice.type), ('reference', '=', invoice.reference), ('company_id', '=', invoice.company_id.id), ('commercial_partner_id', '=', invoice.commercial_partner_id.id), ('id', '!=', invoice.id)]):
+        #            raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
+
+
 
     @api.multi
     def cancelar_factura_timbrada(self):
@@ -440,22 +615,32 @@ class localizacion_mexicana(models.Model):
     }
 
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
+        self._logger.info(response.text)
         json_data = json.loads(response.text)
-        if json_data['result']['success'] == 'true':
+        if json_data['result']['success'] == True:
             self.state = 'timbrado cancelado'
-            self.fac_timbrada = "Timbre Cancelado"
+            #self.state = json_data['result']['estatus']
+            if "En proceso" ==json_data['result']['estatus']:
+                self.fac_timbrada = "En proceso";
+            else:
+                self.fac_timbrada = "Timbre Cancelado";
+            #self.fac_estatus_cancelacion = json_data['result']['estatus']
         else:
             raise ValidationError(json_data['result']['message'])
 
         @api.multi
         def action_invoice_open(self):
             # lots of duplicate calls to action_invoice_open, so we remove those already open
-            to_open_invoices = self.filtered(lambda inv: inv.state != 'open')
-            if to_open_invoices.filtered(lambda inv: inv.state not in ['proforma2', 'draft']):
+            #to_open_invoices = self.filtered(lambda inv: inv.state != 'open')
+            #if to_open_invoices.filtered(lambda inv: inv.state not in ['proforma2', 'draft', 'validate']):
+            #    raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
+            print(self.state)
+            print("Simona")
+            if self.state not in ['proforma2', 'draft', 'validate']:
                 raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
-            to_open_invoices.action_date_assign()
-            to_open_invoices.action_move_create()
-            return to_open_invoices.invoice_validate()
+            self.action_date_assign()
+            self.action_move_create()
+            return self.invoice_validate()
 
     #Modifico  el metodo de Validacion Original para que el estado en que termina sea validate en vez de open
     @api.multi
@@ -479,10 +664,10 @@ class localizacion_mexicana(models.Model):
                 else:
                     if record_product.clave_prod_catalogo_sat_id.descripcion == False:
                         raise ValidationError("FACT002: Clave de unidad de medida del producto %s no asignada" % (record_product.name))
-                    else:
-                        if record_product.default_code == False:
-                            raise ValidationError("FACT002: El campo (referencia interna) del producto %s no  ha sido asignada la cual servira" 
-                                " como No.Identificacion para la facturacion Electronica, usted puede asignarla dentro del modulo de inventarios en la seccion Informacion General" % (record_product.name))
+                    # else:
+                    #     if record_product.default_code == False:
+                    #         raise ValidationError("FACT002: El campo (referencia interna) del producto %s no  ha sido asignada la cual servira"
+                    #             " como No.Identificacion para la facturacion Electronica, usted puede asignarla dentro del modulo de inventarios en la seccion Informacion General" % (record_product.name))
 
         #Cambia el Estado de Borrador a Validado
         for invoice in self:
@@ -495,7 +680,8 @@ class localizacion_mexicana(models.Model):
         if self.type == "out_invoice":
             self.timbrar_factura()
         else:
-            self.timbrar_nota_de_credito()
+            nota_de_credito_descripcion = self.name
+            self.timbrar_nota_de_credito(nota_de_credito_descripcion)
 
     @api.multi
     def action_invoice_open_2(self):
@@ -519,10 +705,11 @@ class localizacion_mexicana(models.Model):
 
     @api.multi
     def validar_campos(self):
+        _logger = logging.getLogger(__name__)
         if self.partner_id.country_id == False:
                 raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: El ciente de origen extranjero %s no tiene el Pais registrado, favor de asignarlo primero" % (self.partner_id.name))
 
-        if self.rfc_cliente_factura == False: 
+        if self.rfc_cliente_factura == False or self.rfc_cliente_factura ==  None:
                 raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene ningun RFC asignado o un NIF(RFC Ventas en General), favor de asignarlo primero" % (self.partner_id.name))
         else:
             if len(self.rfc_cliente_factura) > 13:
@@ -531,7 +718,7 @@ class localizacion_mexicana(models.Model):
                 raise ValidationError("El RFC %s tiene menos de los 12 caracteres para personas Fisicas y 13 para personas morales que establece el sat" % (self.company_registry))
             else:
                 rule = re.compile(r'^([A-ZÑ\x26]{3,4}([0-9]{2})(0[1-9]|1[0-2])(0[1-9]|1[0-9]|2[0-9]|3[0-1]))((-)?([A-Z\d]{3}))?$')
-                if not rule.search(self.rfc_cliente_factura):
+                if self.rfc_cliente_factura != 'XAXX01010100' and  not rule.search(self.rfc_cliente_factura):
                     msg = "Formato de RFC Invalido"
                     msg = msg + "El formato correcto es el siguiente:\n\n"
                     msg = msg + "-Apellido Paterno (del cual se van a utilizar las primeras 2 Letras). \n"
@@ -541,9 +728,9 @@ class localizacion_mexicana(models.Model):
                     msg = msg + "-Sexo (Masculino o Femenino).\n"
                     msg = msg + "-Entidad Federativa de nacimiento (Estado en el que fue registrado al nacer)."
                     raise ValidationError(msg)
-
+        _logger.info(self.env.user.company_id.property_account_position_id)
         if self.env.user.company_id.property_account_position_id.c_regimenfiscal == False:
-            raise ValidationError("La compania %s no tiene asignado ningun Regimen Fiscal, favor de asignarlo primero" % (self.name))   
+            raise ValidationError("La compania %s no tiene asignado ningun Regimen Fiscal, favor de asignarlo primero" % (self.env.user.company_id.name))
 
         if self.partner_id.colonia == False:
             raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.partner_id.name))
@@ -583,6 +770,13 @@ class localizacion_mexicana(models.Model):
         if self.partner_id.cfdi == False:
             raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene activado el campo CFDI que permite Facturar" % (self.partner_id.name))
 
+        # if self.invoice_line_ids != False and len(self.invoice_line_ids)>0:
+        #     for product in self.invoice_line_ids:
+        #         if product.no_identificacion == False or product.no_identificacion == None or product.no_identificacion == '':
+        #             print 'producto'
+        #             print product.product_id.name
+        #             raise ValidationError("Favor de introducir el No. Identificador para el producto %s " % (product.product_id.name))
+
     @api.multi
     def empezar_a_pagar(self):
         self.state='open'
@@ -607,6 +801,7 @@ class AccountTax(models.Model):
     tipo_impuesto_id = fields.Many2one('catalogos.impuestos',string='Tipo de Impuesto')
     tipo_factor_id = fields.Many2one('catalogos.tipo_factor', string='Tipo Factor')
     tasa_o_cuota_id = fields.Many2one('catalogos.tasa_cuota',string='Tasa o cuota')
+    traslado_retenido = fields.Selection([("TRAS","Trasladado"),("RET","Retención")],'Tipo de impuesto')
         
 #"emisor_id" : "ACO560518KW7" ,
     #"receptor_id" : "IAMJ841217KMA" ,

@@ -64,10 +64,15 @@ class OrderSale(models.Model):
         if self.env.user.company_id.state_id.name == False:
             raise ValidationError("La Compañia no tiene asignado ningun Estado")
 
+        referencia = self.name;
+        if self.client_order_ref != None and self.client_order_ref != False:
+            referencia = self.client_order_ref;
+
         self.ensure_one()
         journal_id = self.env['account.invoice'].default_get(['journal_id'])['journal_id']
         if not journal_id:
             raise UserError(('Please define an accounting sale journal for this company.'))
+
         invoice_vals = {
             'name': self.client_order_ref or '',
             'origin': self.name,
@@ -91,6 +96,7 @@ class OrderSale(models.Model):
             'rfc_emisor': (self.env.user.company_id.company_registry).encode('utf-8'),
             'compania_calle': (self.env.user.company_id.street).encode('utf-8'),
             'compania_ciudad': (self.env.user.company_id.city).encode('utf-8'),
-            'compania_pais': (self.env.user.company_id.country_id.name).encode('utf-8')
+            'compania_pais': (self.env.user.company_id.country_id.name).encode('utf-8'),
+            'observaciones' : ("REFERENCIA: "+referencia).encode('utf-8')
         }
         return invoice_vals

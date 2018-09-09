@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "sft_facturacion",
+    'name': "Sft-Facturacion | CFDI 3.3",
 
     'summary': """
         Modulo de timbrado de CFDI 3.3 hacia Sft-Facturacion""",
@@ -16,7 +16,7 @@
     # Check https://github.com/odoo/odoo/blob/master/odoo/addons/base/module/module_data.xml
     # for the full list
     'category': 'Uncategorized',
-    'version': '1.0.0',
+    'version': '1.2.0',
 
     # any module necessary for this one to work correctly
     'depends': ['sale','point_of_sale','catalogos','stock','account','account_accountant'],
@@ -31,7 +31,10 @@
         'views/views_sft_ayuda_error_factura.xml',
         'views/views_account_payment.xml',
         'views/views_wizard_account_invoice_refund.xml',
+        #'views/view_sat_pendiente_cancelar.xml',
+        #'data/parametros.xml',
     ],
+    #'qweb': ['static/src/xml/*.xml'],
     # only loaded in demonstration mode
     'demo': [
        

@@ -27,9 +27,15 @@ class RFCClientes(models.Model):
     metodo_pago_id = fields.Many2one('catalogos.metodo_pago', string='Metodo de pago')
     uso_cfdi_id = fields.Many2one('catalogos.uso_cfdi', string='Uso CFDI')
 
+
+    #invoice_line_ids = fields.One2many('account.invoice.line', 'invoice_id', string='Invoice Lines', oldname='invoice_line',
+    #    readonly=True, states={'draft': [('readonly', False)]}, copy=True)
+
+    partner_notifica_ids = fields.One2many('res.partner.notifica', 'partner_id', string='Notificaciones', copy=False)
+
     @api.constrains('colonia')
     def validar_Municipio(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.municipio == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignado ningun municipio, favor de asignarlo primera" % (self.name))
@@ -71,7 +77,7 @@ class RFCClientes(models.Model):
 
     @api.constrains('colonia')
     def validar_Colonia(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.colonia == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.name))
@@ -85,7 +91,7 @@ class RFCClientes(models.Model):
 
     @api.constrains('city')
     def validar_Ciudad(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.city == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Ciudad, favor de asignarlo primera" % (self.name))
@@ -99,21 +105,37 @@ class RFCClientes(models.Model):
 
     @api.constrains('country_id')
     def validar_Pais(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.country_id.name == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun Pais, favor de asignarlo primera" % (self.name))
     
     @api.constrains('numero_ext')
     def validar_No_Exterior(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.numero_ext == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun No Exterior, favor de asignarlo primera" % (self.name))
 
     @api.constrains('state_id')
     def validar_No_Exterior(self):
-        if self.customer== True: 
+        if self.customer== True:
             if self.cfdi == True:
                 if self.state_id.name == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignad ningun Estado, favor de asignarlo primero" % (self.name))
+
+
+class NotificaCFDI(models.Model):
+    _name = 'res.partner.notifica'
+
+    correo = fields.Char(string='Correo', required=True)
+    #partner_id = fields.Many2one('account.invoice', string='Invoice Reference',
+    #    ondelete='cascade', index=True)
+    partner_id = fields.Many2one('res.partner', string='Cliente Ref', ondelete='cascade')
+
+    # @api.constrains('correo')
+    # def correo_validacion(self):
+    #     """ make sure nid starts with capital letter, followed by 12 numbers and ends with a capital letter"""
+    #     for rec in self:
+    #         if not re.match(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$]$", rec.correo):
+    #             raise ValidationError("Error de Validacion : El correo (%s) no tiene el formato adecuado" % (rec.correo))

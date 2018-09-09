@@ -11,14 +11,18 @@ from odoo.exceptions import UserError, RedirectWarning, ValidationError
 from dateutil.tz import tzlocal
 from odoo import api, fields, models
 
+import logging
+
 class AccountPayment(models.Model):
     _name = 'account.payment'
     _inherit = 'account.payment'
 
+    _logger = logging.getLogger(__name__)
+
     id_banco_seleccionado= fields.Integer('id_banco_seleccionado')
-    formadepagop_id = fields.Many2one('catalogos.forma_pago',string='FormaDePagoP')
+    formadepagop_id = fields.Many2one('catalogos.forma_pago',string='Forma de pago')
     moneda_p = fields.Many2one('res.currency',string='moneda_p')
-    tipocambiop = fields.Char('TipoCambioP',readonly=True)
+    tipocambiop = fields.Char('Tipo de cambio',readonly=True)
     uuid = fields.Char(string="UUID",readonly=True)
     #Monto
     
@@ -29,11 +33,11 @@ class AccountPayment(models.Model):
         return referencia_factura
 
 
-    no_operacion = fields.Char('No. Operacion',help='Se puede registrar el número de cheque, número de autorización, ' 
+    no_operacion = fields.Char('No. de operacion',help='Se puede registrar el número de cheque, número de autorización, '
     +'número de referencia,\n clave de rastreo en caso de ser SPEI, línea de captura o algún número de referencia \n o '
     +'identificación análogo que permita identificar la operación correspondiente al pago efectuado.')
     rfc_emisor_cta_ord = fields.Char('RFC Emisor Institucion Bancaria')
-    nom_banco_ord_ext_id = fields.Many2one('catalogos.bancos',string='Banco')
+    nom_banco_ord_ext_id = fields.Many2one('catalogos.bancos',string='Banco emisor')
     cta_ordenante = fields.Char('Cuenta Ordenante')
     rfc_emisor_cta_ben = fields.Char(string='RFC Emisor Cuenta Beneficiario',readonly=True)
     cta_beneficiario = fields.Char(string='Cuenta Beneficiario',readonly=True)
@@ -45,10 +49,15 @@ class AccountPayment(models.Model):
     def Timbrara_Pago(self):
         invoice = self.env['account.invoice'].browse(self._context.get('active_ids'))
         for record in invoice:
-            if record.metodo_pago_id.c_metodo_pago=="PPD":
+            print record.fac_timbrada;
+            if record.fac_timbrada == 'Timbrada':
                 self.timbrar_pago= True
             else:
                 self.timbrar_pago=False
+            #if record.metodo_pago_id.c_metodo_pago=="PPD":
+            #    self.timbrar_pago= True
+            #else:
+            #    self.timbrar_pago=False
         return self.timbrar_pago
 
     timbrar_pago = fields.Boolean(string='Timbrar Factura',store=True,compute=Timbrara_Pago)
@@ -86,41 +95,44 @@ class AccountPayment(models.Model):
     @api.constrains('journal_id')
     def Validar_Forma_Pago(self):
 
-            # Valida que haya elegido una forma de pago
-            if self.payment_type == "inbound":
-                if self.ref != False:
-                    if self.formadepagop_id.id != False:
-                        #Valida el ingreso de datos Bancarios
-                        if self.formadepagop_id.descripcion != "Efectivo":
-                            if self.journal_id.type == "bank":
-                                if self.formadepagop_id.rfc_emisor_cta_benef != "No":
-                                    self.cta_beneficiario = self.journal_id.bank_acc_number
-                                    """Esta linea de codigo fue comentada ya que apartir de ahora de utilizara un catalago de bancos precargado.
-                                    Anteriormente utilizaba del banco del diario para realizar este paso de informacion, pero con la nueva forma
-                                    a quedado obsoleto por lo que ha sido comentado en caso de que sea requerido para instalaciones anteriores"""
-                                    #self.nom_banco_ord_ext_id = self.journal_id.bank_id.name
-                                    self.rfc_emisor_cta_ben = self.journal_id.rfc_institucion_bancaria
-                                    self.tipocambiop = self.currency_id.rate
-                                if self.formadepagop_id.rfc_emisor_cta_benef != "No":
-                                    # Valida el patron de la cuenta Beneficiara
-                                    patron_cta_benef = self.formadepagop_id.patron_cta_benef
-                                # Valida que la Cuenta Beneficiaria no este vacia
-                                if self.cta_beneficiario != False:
-                                    if patron_cta_benef != "No":
-                                        rule_patron_cta_benef = re.compile(patron_cta_benef)
-                                        if not rule_patron_cta_benef.search(self.cta_beneficiario):
-                                            msg = "Formato de Cuenta Beneficiaria Incorrecto para la forma de pago: "+str(self.formadepagop_id.descripcion)
-                                            raise ValidationError(msg)
-                                # Valida el patron de la cuenta ordenante
-                                patron_cta_ordenante = self.formadepagop_id.patron_cta_ordenante
-                                if self.cta_ordenante != False:
-                                    if patron_cta_ordenante != "No":
-                                        rule_patron_cta_ordenante = re.compile(patron_cta_ordenante)
-                                        if not rule_patron_cta_ordenante.search(self.cta_ordenante):
-                                            msg = "Formato de Cuenta Ordenante Incorrecto para la forma de pago: " + str(self.formadepagop_id.descripcion)
-                                            raise ValidationError(msg)
-                    else:
-                        raise ValidationError("No ha ingresado la forma de pago")
+        if self.timbrar_pago == False:
+            return;
+
+        # Valida que haya elegido una forma de pago
+        if self.payment_type == "inbound":
+            if self.ref != False:
+                if self.formadepagop_id.id != False:
+                    #Valida el ingreso de datos Bancarios
+                    if self.formadepagop_id.descripcion != "Efectivo":
+                        if self.journal_id.type == "bank":
+                            if self.formadepagop_id.rfc_emisor_cta_benef != "No":
+                                self.cta_beneficiario = self.journal_id.bank_acc_number
+                                """Esta linea de codigo fue comentada ya que apartir de ahora de utilizara un catalago de bancos precargado.
+                                Anteriormente utilizaba del banco del diario para realizar este paso de informacion, pero con la nueva forma
+                                a quedado obsoleto por lo que ha sido comentado en caso de que sea requerido para instalaciones anteriores"""
+                                #self.nom_banco_ord_ext_id = self.journal_id.bank_id.name
+                                self.rfc_emisor_cta_ben = self.journal_id.rfc_institucion_bancaria
+                                self.tipocambiop = self.currency_id.rate
+                            if self.formadepagop_id.rfc_emisor_cta_benef != "No":
+                                # Valida el patron de la cuenta Beneficiara
+                                patron_cta_benef = self.formadepagop_id.patron_cta_benef
+                            # Valida que la Cuenta Beneficiaria no este vacia
+                            if self.cta_beneficiario != False:
+                                if patron_cta_benef != "No":
+                                    rule_patron_cta_benef = re.compile(patron_cta_benef)
+                                    if not rule_patron_cta_benef.search(self.cta_beneficiario):
+                                        msg = "Formato de Cuenta Beneficiaria Incorrecto para la forma de pago: "+str(self.formadepagop_id.descripcion)
+                                        raise ValidationError(msg)
+                            # Valida el patron de la cuenta ordenante
+                            patron_cta_ordenante = self.formadepagop_id.patron_cta_ordenante
+                            if self.cta_ordenante != False:
+                                if patron_cta_ordenante != "No":
+                                    rule_patron_cta_ordenante = re.compile(patron_cta_ordenante)
+                                    if not rule_patron_cta_ordenante.search(self.cta_ordenante):
+                                        msg = "Formato de Cuenta Ordenante Incorrecto para la forma de pago: " + str(self.formadepagop_id.descripcion)
+                                        raise ValidationError(msg)
+                else:
+                    raise ValidationError("No ha ingresado la forma de pago")
 
     def Validar_y_Timbrar_Pago(self):
         self.post_2(True)
@@ -177,7 +189,7 @@ class AccountPayment(models.Model):
         """ Create a journal entry corresponding to a payment, if the payment references invoice(s) they are reconciled.
             Return the journal entry.
         """
-        self.nom_banco_ord_ext_id = self.id_banco_seleccionado
+        #self.nom_banco_ord_ext_id = self.id_banco_seleccionado
         residual_antes_de_pago = self.invoice_ids.residual
         self.tipocambiop = self.currency_id.rate
         moneda_extranjera = False
@@ -272,12 +284,14 @@ class AccountPayment(models.Model):
                 move.move_imp_pagado = imp_pagado_currency
             move.move_imp_saldo_insoluto = (Decimal(move.move_imp_saldo_ant))-(Decimal(move.move_imp_pagado))
             move.move_rfc_emisor_cta_ord = self.rfc_emisor_cta_ord
-            move.move_nom_banco_ord_ext_id = self.nom_banco_ord_ext_id.id
+            #move.move_nom_banco_ord_ext_id = self.nom_banco_ord_ext_id.id
             move.move_cta_ordenante = self.cta_ordenante
             move.ref_factura = self.ref
             move.move_no_operacion = self.no_operacion
+            self._logger.info(self.nom_banco_ord_ext_id)
+            move.move_nom_banco_ord_ext_id   =self.nom_banco_ord_ext_id;
             if timbrar == True:
-                move.timbrar_factura()
+                move.timbrar_pago()
         move.post()
         return move
 
@@ -287,21 +301,23 @@ class AccountMove(models.Model):
     _name = 'account.move'
     _inherit  = 'account.move'
 
+    _logger = logging.getLogger(__name__)
+
     def establecer_uso_de_cfdi(self):
-        uso = url_parte = self.env['catalogos.uso_cfdi'].search([('id', '=', '22')])
+        uso = self.env['catalogos.uso_cfdi'].search([('id', '=', '22')])
         return uso
 
     move_no_parcialidad = fields.Char(string='No. Parcialidad')
-    move_formadepagop_id = fields.Many2one('catalogos.forma_pago',string='FormaDePagoP')
-    move_moneda_p = fields.Many2one('res.currency',string='moneda_p')
-    move_tipocambiop = fields.Char('TipoCambioP')
-    move_uuid = fields.Char(string="UUID", readonly=True)
-    move_uuid_ref = fields.Char(string="IdDocumentoRelacionado", readonly=True)
+    move_formadepagop_id = fields.Many2one('catalogos.forma_pago',string='Forma de pago')
+    move_moneda_p = fields.Many2one('res.currency',string='Moneda')
+    move_tipocambiop = fields.Char('Tipo de cambio')
+    move_uuid = fields.Char(string="UUID del Pago", readonly=True)
+    move_uuid_ref = fields.Char(string="UUID Relacionado", readonly=True)
     #Monto
     move_rfc_emisor_cta_ben = fields.Char('RfcEmisorCtaBen')
     move_cta_beneficiario = fields.Char('CtaBeneficiario')
     move_rfc_emisor_cta_ord = fields.Char('RFC Emisor Cuenta Ord')
-    move_nom_banco_ord_ext_id = fields.Many2one('catalogos.bancos',string='Bancos')
+    move_nom_banco_ord_ext_id = fields.Many2one('catalogos.bancos',string='Banco')
     move_cta_ordenante = fields.Char('Cuenta Ordenante')
     move_rfc_emisor_cta_ben = fields.Char('RFC Emisor Cuenta Beneficiario')
     move_cta_beneficiario = fields.Char('Cuenta Beneficiario')
@@ -317,6 +333,36 @@ class AccountMove(models.Model):
     move_imp_pagado = fields.Monetary('Importe Pagado')
     move_imp_saldo_ant = fields.Monetary('Importe Saldo Anterior')
     move_imp_saldo_insoluto = fields.Monetary('Importe Saldo Insoluto')
+
+
+
+
+    def Puede_Timbrar(self):
+        #invoice = self.env['account.invoice'].browse(self._context.get('active_ids'))
+        self._logger.info(self.ref)
+        invoice = self.env['account.invoice'].search([('number', '=', self.ref)])
+        for record in invoice:
+            self._logger.info(record.fac_timbrada)
+            if record.fac_timbrada == 'Timbrada' :
+                self.move_puede_timbrar= True
+            else:
+                self.move_puede_timbrar=False
+            #if record.metodo_pago_id.c_metodo_pago=="PPD":
+            #    self.timbrar_pago= True
+            #else:
+            #    self.timbrar_pago=False
+        return self.move_puede_timbrar
+
+    move_puede_timbrar = fields.Boolean(string='Timbrar Factura',store=False,compute=Puede_Timbrar)
+
+
+    @api.onchange('move_nom_banco_ord_ext_id')
+    def _onchange_establecer_banco_emisor(self):
+        print self.move_nom_banco_ord_ext_id.rfc_banco
+        self.move_rfc_emisor_cta_ord = self.move_nom_banco_ord_ext_id.rfc_banco
+        #self.id_banco_seleccionado = self.move_nom_banco_ord_ext_id.id
+
+
 
     @api.multi
     def descargar_factura_pdf(self):
@@ -437,7 +483,7 @@ class AccountMove(models.Model):
                     "monto": str(self.move_imp_pagado),
                     "num_operacion": "01",
                     #"rfc_emisor_cta_ord": str(factura.partner_id.nif),
-                    "rfc_emisor_cta_ord": str(self.move_rfc_emisor_cta_ben),
+                    "rfc_emisor_cta_ord": str(self.move_rfc_emisor_cta_ord),
                     "nom_banco_ord_ext_id": str(self.move_nom_banco_ord_ext_id.c_nombre),
                     "cta_ordenante": str(self.move_cta_ordenante),
                     "rfc_emisor_cta_ben": str(self.move_rfc_emisor_cta_ben),
@@ -463,9 +509,9 @@ class AccountMove(models.Model):
         headers = {
             'content-type': "application/json", 'Authorization': "Basic YWRtaW46YWRtaW4="
         }
-
+        self._logger.info(data)
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
-        print data
+
         print((response.text).encode('utf-8'))
         json_data = json.loads(response.text)
         if json_data['result']['success'] == 'true':

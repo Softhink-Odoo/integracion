@@ -6,3 +6,6 @@ from . import product_template
 from . import res_partner
 from . import res_company
 from . import sft_ayuda
+from . import account_invoice_line
+#from . import SATPendienteCancelar
+#from . import cfdi_alarm
