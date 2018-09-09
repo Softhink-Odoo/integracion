@@ -7,7 +7,11 @@ class ClaveProdServicios(models.Model):
     _description=u"Catálogo de productos / servicios."
     _rec_name = 'descripcion'
 
+<<<<<<< HEAD
     c_claveprodserv = fields.Char(string='c_CaveProdServ')
+=======
+    c_claveprodserv = fields.Text(string='c_CaveProdServ')
+>>>>>>> 4b6e2879ccc11a6af25eefe7d57d9176f9b2c887
     descripcion = fields.Char(string='Descripcion')
     fechainiciovigencia = fields.Date(string='Inicio de Vigencia')
     fechafinvigencia = fields.Date(string='Fin de la Vigencia')	

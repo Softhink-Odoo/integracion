@@ -1,2 +1,6 @@
 id,url,usuario,contrasena
+<<<<<<< HEAD
 catalogos_configuracion_1,https://portal.sft-facturacion.com/,usuario_conectividad,password
+=======
+catalogos_configuracion_1,http://softhink.ddns.net:8888/Facturacion/,prueba,contraseña
+>>>>>>> 4b6e2879ccc11a6af25eefe7d57d9176f9b2c887

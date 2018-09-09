@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 {
+<<<<<<< HEAD
     'name': "catalogos",
+=======
+    'name': "Catalogos | SFT-Facturacion",
+>>>>>>> 4b6e2879ccc11a6af25eefe7d57d9176f9b2c887
 
     'summary': """
         Contiene los Catalogos requeridos por el SAT para la facturacion en 3.3""",
 
     'description': """
+<<<<<<< HEAD
         El modulo esta integrado al portal de Sft-Facturacion, heredando toda la funcionalidad tanto en el portal en linea, como en el modulo dentro de Odoo.
+=======
+        Carga la estructura y datos base para la facturacion electronica CFDI 3.3
+>>>>>>> 4b6e2879ccc11a6af25eefe7d57d9176f9b2c887
     """,
 
     'author': "Softhink",
@@ -66,5 +74,8 @@
     'demo': [
          
     ],
+<<<<<<< HEAD
 	"images":['static/description/Integracion4.jpg'],
+=======
+>>>>>>> 4b6e2879ccc11a6af25eefe7d57d9176f9b2c887
 }
