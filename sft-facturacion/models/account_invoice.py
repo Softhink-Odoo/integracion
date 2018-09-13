@@ -617,13 +617,19 @@ class localizacion_mexicana(models.Model):
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
         self._logger.info(response.text)
         json_data = json.loads(response.text)
-        if json_data['result']['success'] == True:
+        if json_data['result']['success'] == True or json_data['result']['success'] == "true":
             self.state = 'timbrado cancelado'
+            self.fac_timbrada = "Timbre Cancelado"
+
+
+            #self.state = 'timbrado cancelado'
+            #self.fac_timbrada = "Timbre Cancelado";
+
             #self.state = json_data['result']['estatus']
-            if "En proceso" ==json_data['result']['estatus']:
-                self.fac_timbrada = "En proceso";
-            else:
-                self.fac_timbrada = "Timbre Cancelado";
+            #if "En proceso" ==json_data['result']['estatus']:
+            #    self.fac_timbrada = "En proceso";
+            #else:
+            #    self.fac_timbrada = "Timbre Cancelado";
             #self.fac_estatus_cancelacion = json_data['result']['estatus']
         else:
             raise ValidationError(json_data['result']['message'])
