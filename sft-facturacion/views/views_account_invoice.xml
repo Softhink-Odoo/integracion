@@ -82,7 +82,7 @@
         </field>
       </record>
 
-      <record model="ir.ui.view" id="purchase_mexico_form_1">
+      <!--<record model="ir.ui.view" id="purchase_mexico_form_1">
         <field name="name">invoice.mexico.form.detalle.buttons</field>
         <field name="model">account.invoice</field>
         <field name="inherit_id" ref="account.invoice_supplier_form"/>
@@ -93,7 +93,7 @@
         </xpath>    
 
       </field>
-    </record>
+    </record>-->
 
 
     <record model="ir.ui.view" id="invoice_mexico_tree_detalle">
