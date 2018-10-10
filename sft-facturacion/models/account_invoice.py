@@ -90,6 +90,8 @@ class localizacion_mexicana(models.Model):
     pdf ="Factura?Accion=descargaPDF&factura=";
     xml ="Factura?Accion=ObtenerXML&factura=";
     fac_timbrada = fields.Char('CFDI',default="Sin Timbrar",readonly=True, copy=False)
+    fac_folio = fields.Char('Folio CFDI',readonly=True, copy=False)
+    fac_serie = fields.Char('Serie CFDI',readonly=True, copy=False)
     #fac_estatus_cancelacion = fields.Char("Estatus Cancelación",default="", copy=False)
 
     #Carga El RFC del Cliente Seleccionado
@@ -121,6 +123,30 @@ class localizacion_mexicana(models.Model):
         self.action_date_assign()
         self.action_move_create()
         return self.invoice_validate()
+
+
+    @api.multi
+    def abre_pago(self):
+        print("abre_pago")
+        # return {
+        #     'type': 'ir.actions.act_window',
+        #     'res_model': 'account.payment',
+        #     'view_type': 'form',
+        #     'view_mode': 'form',
+        #     'res_id':  50 or False,
+        #     'target': 'current',
+        # }
+
+        return {
+            'name': _('Customer Invoice'),
+            'view_type': 'form',
+            'view_mode': 'form',
+            'res_model': 'account.payment',
+            'type': 'ir.actions.act_window',
+            'nodestroy': False,
+            'target': 'current',
+            'res_id':  50 or False,
+        }
 
 
 
@@ -215,29 +241,50 @@ class localizacion_mexicana(models.Model):
             receptor = {
             "receptor_id": self.rfc_cliente_factura,
             "compania":self.partner_id.name.encode('utf-8'),
-            "calle": self.partner_id.street.encode('utf-8'),
-            "ciudad":self.partner_id.city.encode('utf-8'),
             "correo":self.partner_id.email.encode('utf-8'),
-            "colonia":self.partner_id.colonia.encode('utf-8'),
-            "codigopostal":self.partner_id.zip,
-            "numero_ext":self.partner_id.numero_ext,
-            "estado":self.partner_id.state_id.name.encode('utf-8'),
+            # "calle": self.partner_id.street.encode('utf-8'),
+            # "ciudad":self.partner_id.city.encode('utf-8'),
+            # "correo":self.partner_id.email.encode('utf-8'),
+            # "colonia":self.partner_id.colonia.encode('utf-8'),
+            # "codigopostal":self.partner_id.zip,
+            # "numero_ext":self.partner_id.numero_ext,
+            # "estado":self.partner_id.state_id.name.encode('utf-8'),
             "NIF": self.partner_id.nif.encode('utf-8')
         }
         else:
             receptor = {
             "receptor_id": self.rfc_cliente_factura,
             "compania":self.partner_id.name.encode('utf-8'),
-            "calle": self.partner_id.street.encode('utf-8'),
-            "ciudad":self.partner_id.city.encode('utf-8'),
             "correo":self.partner_id.email.encode('utf-8'),
-            "colonia":self.partner_id.colonia.encode('utf-8'),
-            "codigopostal":self.partner_id.zip,
-            "numero_ext":self.partner_id.numero_ext,
-            "estado":self.partner_id.state_id.name.encode('utf-8'),
+            # "calle": self.partner_id.street.encode('utf-8'),
+            # "ciudad":self.partner_id.city.encode('utf-8'),
+            # "correo":self.partner_id.email.encode('utf-8'),
+            # "colonia":self.partner_id.colonia.encode('utf-8'),
+            # "codigopostal":self.partner_id.zip,
+            # "numero_ext":self.partner_id.numero_ext,
+            # "estado":self.partner_id.state_id.name.encode('utf-8'),
         }
         if self.partner_id.numero_int != None and self.partner_id.numero_int != False:
             receptor["numero_int"] = self.partner_id.numero_int;
+
+        if self.partner_id.street != None and self.partner_id.street != False:
+            receptor["calle"] = self.partner_id.street.encode('utf-8');
+
+        if self.partner_id.city != None and self.partner_id.city != False:
+            receptor["ciudad"] = self.partner_id.city.encode('utf-8');
+
+        if self.partner_id.colonia != None and self.partner_id.colonia != False:
+            receptor["colonia"] = self.partner_id.colonia.encode('utf-8');
+
+        if self.partner_id.numero_ext != None and self.partner_id.numero_ext != False:
+            receptor["numero_ext"] = self.partner_id.numero_ext;
+
+        if self.partner_id.state_id.name != None and self.partner_id.state_id.name != False:
+            receptor["estado"] = self.partner_id.state_id.name.encode('utf-8');
+
+        if self.partner_id.zip != None and self.partner_id.zip != False:
+            receptor["codigopostal"] = self.partner_id.zip;
+
 
         arr_notifica = [];
         for notifica in self.partner_id.partner_notifica_ids:
@@ -352,6 +399,7 @@ class localizacion_mexicana(models.Model):
         _logger = logging.getLogger(__name__)
         _logger.info(data)
         response = requests.request("POST", url, data=json.dumps(data), headers=headers)
+        print(response.text)
         json_data = json.loads(response.text)
         #Valida que la factura haya sido timbrada Correctamente
         if json_data['result']['success']== 'true':
@@ -360,7 +408,8 @@ class localizacion_mexicana(models.Model):
             self.uuid = json_data['result']['uuid']
             self.fac_id = json_data['result']['fac_id']
             self.fac_timbrada = "Timbrada"
-            print self.fac_id
+            self.fac_folio = json_data['result']['fac_folio'];
+            self.fac_serie = json_data['result']['fac_serie'];
         else:
             raise ValidationError(json_data['result']['message'])
 
@@ -455,8 +504,6 @@ class localizacion_mexicana(models.Model):
                 }
                 impuestos.append(impuestosxconcepto)
 
-            print "Referencia Interna"
-            print conceptos_record.product_id.default_code.encode('utf-8')
 
          # ConceptosXFactura
             concepto = {"con_cantidad": str(conceptos_record.quantity), "con_descripcion": str(conceptos_record.name.encode("utf-8")),
@@ -604,35 +651,55 @@ class localizacion_mexicana(models.Model):
 
     @api.multi
     def cancelar_factura_timbrada(self):
-        url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
-        url = str(url_parte.url)+"webresources/FacturacionWS/Cancelar"
-        data = {
-         "uuid": self.uuid
+        #Valida que no tenga algún pago con timbre
+        if self.fac_timbrada == 'Timbrada':
+            pagos_timbrados = self.env['account.payment'].search([('ref', '=',self.number), ('uuid', '!=','')])
+            if len(pagos_timbrados)>0:
+                raise ValidationError("La factura ya tiene pagos timbrados, no se puede cancelar")
+
+
+
+
+
+        #Cancela factura de Odoo
+        self.action_cancel();
+
+
+
+        if self.fac_timbrada == 'Timbrada':
+            #Validar que no tenga pagos
+
+            url_parte = self.env['catalogos.configuracion'].search([('url', '!=', '')])
+            url = str(url_parte.url)+"webresources/FacturacionWS/Cancelar"
+            data = {
+             "uuid": self.uuid
+            }
+
+            headers = {
+               'content-type': "application/json", 'Authorization':"Basic YWRtaW46YWRtaW4="
         }
 
-        headers = {
-           'content-type': "application/json", 'Authorization':"Basic YWRtaW46YWRtaW4="
-    }
-
-        response = requests.request("POST", url, data=json.dumps(data), headers=headers)
-        self._logger.info(response.text)
-        json_data = json.loads(response.text)
-        if json_data['result']['success'] == True or json_data['result']['success'] == "true":
-            self.state = 'timbrado cancelado'
-            self.fac_timbrada = "Timbre Cancelado"
 
 
-            #self.state = 'timbrado cancelado'
-            #self.fac_timbrada = "Timbre Cancelado";
+            response = requests.request("POST", url, data=json.dumps(data), headers=headers)
+            self._logger.info(response.text)
+            json_data = json.loads(response.text)
+            if json_data['result']['success'] == True or json_data['result']['success'] == "true":
+                self.state = 'cancel'
+                self.fac_timbrada = "Timbre Cancelado"
 
-            #self.state = json_data['result']['estatus']
-            #if "En proceso" ==json_data['result']['estatus']:
-            #    self.fac_timbrada = "En proceso";
-            #else:
-            #    self.fac_timbrada = "Timbre Cancelado";
-            #self.fac_estatus_cancelacion = json_data['result']['estatus']
-        else:
-            raise ValidationError(json_data['result']['message'])
+
+                #self.state = 'timbrado cancelado'
+                #self.fac_timbrada = "Timbre Cancelado";
+
+                #self.state = json_data['result']['estatus']
+                #if "En proceso" ==json_data['result']['estatus']:
+                #    self.fac_timbrada = "En proceso";
+                #else:
+                #    self.fac_timbrada = "Timbre Cancelado";
+                #self.fac_estatus_cancelacion = json_data['result']['estatus']
+            else:
+                raise ValidationError(json_data['result']['message'])
 
         @api.multi
         def action_invoice_open(self):
@@ -640,8 +707,7 @@ class localizacion_mexicana(models.Model):
             #to_open_invoices = self.filtered(lambda inv: inv.state != 'open')
             #if to_open_invoices.filtered(lambda inv: inv.state not in ['proforma2', 'draft', 'validate']):
             #    raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
-            print(self.state)
-            print("Simona")
+
             if self.state not in ['proforma2', 'draft', 'validate']:
                 raise UserError(_("Invoice must be in draft or Pro-forma state in order to validate it."))
             self.action_date_assign()
@@ -712,8 +778,8 @@ class localizacion_mexicana(models.Model):
     @api.multi
     def validar_campos(self):
         _logger = logging.getLogger(__name__)
-        if self.partner_id.country_id == False:
-                raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: El ciente de origen extranjero %s no tiene el Pais registrado, favor de asignarlo primero" % (self.partner_id.name))
+        # if self.partner_id.country_id == False:
+        #         raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: El ciente de origen extranjero %s no tiene el Pais registrado, favor de asignarlo primero" % (self.partner_id.name))
 
         if self.rfc_cliente_factura == False or self.rfc_cliente_factura ==  None:
                 raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene ningun RFC asignado o un NIF(RFC Ventas en General), favor de asignarlo primero" % (self.partner_id.name))
@@ -738,23 +804,23 @@ class localizacion_mexicana(models.Model):
         if self.env.user.company_id.property_account_position_id.c_regimenfiscal == False:
             raise ValidationError("La compania %s no tiene asignado ningun Regimen Fiscal, favor de asignarlo primero" % (self.env.user.company_id.name))
 
-        if self.partner_id.colonia == False:
-            raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.partner_id.name))
+        # if self.partner_id.colonia == False:
+        #     raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.partner_id.name))
 
         if self.partner_id.email == False:
             raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignado ningun Correo Electronico, favor de asignarlo primera" % (self.name))
 
-        if self.partner_id.city == False:
-            raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ninguna Ciudad, favor de asignarlo primera" % (self.partner_id.name))
+        # if self.partner_id.city == False:
+        #     raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ninguna Ciudad, favor de asignarlo primera" % (self.partner_id.name))
 
-        if self.partner_id.zip == False:
-            raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun Codigo Postal, favor de asignarlo primera" % (self.partner_id.name))
-
-        if self.partner_id.country_id.name == False:
-            raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun Pais, favor de asignarlo primera" % (self.partner_id.name))
-
-        if self.partner_id.numero_ext == False:
-            raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun No Exterior, favor de asignarlo primera" % (self.name))
+        # if self.partner_id.zip == False:
+        #     raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun Codigo Postal, favor de asignarlo primera" % (self.partner_id.name))
+        #
+        # if self.partner_id.country_id.name == False:
+        #     raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun Pais, favor de asignarlo primera" % (self.partner_id.name))
+        #
+        # if self.partner_id.numero_ext == False:
+        #     raise ValidationError("FACT004 : Hay campos en el cliente %s sin informacion requerida para Timbrar: no tiene asignada ningun No Exterior, favor de asignarlo primera" % (self.name))
 
         #Validacionciones Atributos de Factura
         if self.forma_pago_id.descripcion == False:
@@ -763,8 +829,8 @@ class localizacion_mexicana(models.Model):
         if self.metodo_pago_id.descripcion == False:
             raise ValidationError("FACT004 :  Hay campos en esta factura sin informacion requerida para Timbrar:El Metodo de Pago no ha sido asignada")
 
-        if self.codigo_postal_id.c_estado == False:
-            raise ValidationError("FACT004 :  Hay campos en esta factura sin informacion requerida para Timbrar: xpedicion no ha sido asignada")
+        # if self.codigo_postal_id.c_estado == False:
+        #     raise ValidationError("FACT004 :  Hay campos en esta factura sin informacion requerida para Timbrar: xpedicion no ha sido asignada")
         
         if self.uso_cfdi_id.descripcion == False:
             raise ValidationError("FACT004 :  Hay campos en esta factura sin informacion requerida para Timbrar: el Uso de CFDI no ha sido asignado")
@@ -786,7 +852,6 @@ class localizacion_mexicana(models.Model):
     @api.multi
     def empezar_a_pagar(self):
         self.state='open'
-        print self._name
     
     #Me obtiene el ultimo pago realizado en la factura
     @api.multi
@@ -796,7 +861,87 @@ class localizacion_mexicana(models.Model):
             pagos.append(fac_pagos.amount)
             
         raise ValidationError('result %s' % pagos[0])
-       
+
+
+    # @api.one
+    # def _get_outstanding_info_JSON(self):
+    #     self.outstanding_credits_debits_widget = json.dumps(False)
+    #     if self.state == 'open':
+    #         domain = [('account_id', '=', self.account_id.id), ('partner_id', '=', self.env['res.partner']._find_accounting_partner(self.partner_id).id), ('reconciled', '=', False), ('state','!=','canceled'), ('amount_residual', '!=', 0.0)]
+    #         if self.type in ('out_invoice', 'in_refund'):
+    #             domain.extend([('credit', '>', 0), ('debit', '=', 0)])
+    #             type_payment = _('Outstanding credits')
+    #         else:
+    #             domain.extend([('credit', '=', 0), ('debit', '>', 0)])
+    #             type_payment = _('Outstanding debits')
+    #         info = {'title': '', 'outstanding': True, 'content': [], 'invoice_id': self.id}
+    #         lines = self.env['account.move.line'].search(domain)
+    #         currency_id = self.currency_id
+    #         if len(lines) != 0:
+    #             for line in lines:
+    #                 # get the outstanding residual value in invoice currency
+    #                 if line.currency_id and line.currency_id == self.currency_id:
+    #                     amount_to_show = abs(line.amount_residual_currency)
+    #                 else:
+    #                     amount_to_show = line.company_id.currency_id.with_context(date=line.date).compute(abs(line.amount_residual), self.currency_id)
+    #                 if float_is_zero(amount_to_show, precision_rounding=self.currency_id.rounding):
+    #                     continue
+    #                 info['content'].append({
+    #                     'journal_name': line.ref or line.move_id.name,
+    #                     'amount': amount_to_show,
+    #                     'currency': currency_id.symbol,
+    #                     'id': line.id,
+    #                     'position': currency_id.position,
+    #                     'digits': [69, self.currency_id.decimal_places],
+    #                 })
+    #             info['title'] = type_payment
+    #             self.outstanding_credits_debits_widget = json.dumps(info)
+    #             self.has_outstanding = True
+
+
+    @api.one
+    @api.depends('payment_move_line_ids.amount_residual')
+    def _get_payment_info_JSON(self):
+        self.payments_widget = json.dumps(False)
+        if self.payment_move_line_ids:
+            info = {'title': _('Less Payment'), 'outstanding': False, 'content': []}
+            currency_id = self.currency_id
+            for payment in self.payment_move_line_ids:
+                payment_currency_id = False
+                if self.type in ('out_invoice', 'in_refund'):
+                    amount = sum([p.amount for p in payment.matched_debit_ids if p.debit_move_id in self.move_id.line_ids])
+                    amount_currency = sum([p.amount_currency for p in payment.matched_debit_ids if p.debit_move_id in self.move_id.line_ids])
+                    if payment.matched_debit_ids:
+                        payment_currency_id = all([p.currency_id == payment.matched_debit_ids[0].currency_id for p in payment.matched_debit_ids]) and payment.matched_debit_ids[0].currency_id or False
+                elif self.type in ('in_invoice', 'out_refund'):
+                    amount = sum([p.amount for p in payment.matched_credit_ids if p.credit_move_id in self.move_id.line_ids])
+                    amount_currency = sum([p.amount_currency for p in payment.matched_credit_ids if p.credit_move_id in self.move_id.line_ids])
+                    if payment.matched_credit_ids:
+                        payment_currency_id = all([p.currency_id == payment.matched_credit_ids[0].currency_id for p in payment.matched_credit_ids]) and payment.matched_credit_ids[0].currency_id or False
+                # get the payment value in invoice currency
+                if payment_currency_id and payment_currency_id == self.currency_id:
+                    amount_to_show = amount_currency
+                else:
+                    amount_to_show = payment.company_id.currency_id.with_context(date=payment.date).compute(amount, self.currency_id)
+                if float_is_zero(amount_to_show, precision_rounding=self.currency_id.rounding):
+                    continue
+                payment_ref = payment.move_id.name
+                if payment.move_id.ref:
+                    payment_ref += ' (' + payment.move_id.ref + ')'
+                info['content'].append({
+                    'name': payment.name,
+                    'journal_name': payment.journal_id.name,
+                    'amount': amount_to_show,
+                    'currency': currency_id.symbol,
+                    'digits': [69, currency_id.decimal_places],
+                    'position': currency_id.position,
+                    'date': payment.date,
+                    #'payment_id': payment.id,
+                    'payment_id': payment.payment_id.id,
+                    'move_id': payment.move_id.id,
+                    'ref': payment_ref,
+                })
+            self.payments_widget = json.dumps(info)
 
 
 #Agrega los campos al formulario de los impuestos para asignar las claves de Sat

@@ -16,10 +16,10 @@
     # Check https://github.com/odoo/odoo/blob/master/odoo/addons/base/module/module_data.xml
     # for the full list
     'category': 'Uncategorized',
-    'version': '1.2.0',
+    'version': '1.3.0',
 
     # any module necessary for this one to work correctly
-    'depends': ['sale','point_of_sale','catalogos','stock','account','account_accountant'],
+    'depends': ['sale','point_of_sale','catalogos','stock','account','account_accountant','account_cancel', 'report'],
     #'depends': ['account','account_accountant'],
     # always loaded
     'data': [
@@ -31,13 +31,15 @@
         'views/views_sft_ayuda_error_factura.xml',
         'views/views_account_payment.xml',
         'views/views_wizard_account_invoice_refund.xml',
+        #'views/view_sale_order.xml',
         #'views/view_sat_pendiente_cancelar.xml',
         #'data/parametros.xml',
+    ]
+    ,'demo': [
+
     ],
-    #'qweb': ['static/src/xml/*.xml'],
-    # only loaded in demonstration mode
-    'demo': [
-       
+    'qweb': [
+        'static/src/xml/*.xml',
     ],
 	"images":['static/description/Integracion4.jpg'],
 }

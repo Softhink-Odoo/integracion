@@ -75,12 +75,12 @@ class RFCClientes(models.Model):
                     if self.rfc_cliente == False:
                         raise ValidationError("Error de Validacion : El cliente de origen extranjero %s no tiene el NIF registrado, favor de asignarlo primero" % (self.name))
 
-    @api.constrains('colonia')
-    def validar_Colonia(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.colonia == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.name))
+    # @api.constrains('colonia')
+    # def validar_Colonia(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.colonia == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Colonia, favor de asignarlo primera" % (self.name))
 
     @api.constrains('email')
     def validar_Email(self):
@@ -89,12 +89,12 @@ class RFCClientes(models.Model):
                 if self.email == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignado ningun Correo Electronico, favor de asignarlo primera" % (self.name))
 
-    @api.constrains('city')
-    def validar_Ciudad(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.city == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Ciudad, favor de asignarlo primera" % (self.name))
+    # @api.constrains('city')
+    # def validar_Ciudad(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.city == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ninguna Ciudad, favor de asignarlo primera" % (self.name))
 
     @api.constrains('zip')
     def validar_Codigo_Postal(self):
@@ -103,26 +103,26 @@ class RFCClientes(models.Model):
                 if self.zip == False:
                         raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun Codigo Postal, favor de asignarlo primera" % (self.name))
 
-    @api.constrains('country_id')
-    def validar_Pais(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.country_id.name == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun Pais, favor de asignarlo primera" % (self.name))
-    
-    @api.constrains('numero_ext')
-    def validar_No_Exterior(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.numero_ext == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun No Exterior, favor de asignarlo primera" % (self.name))
-
-    @api.constrains('state_id')
-    def validar_No_Exterior(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.state_id.name == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignad ningun Estado, favor de asignarlo primero" % (self.name))
+    # @api.constrains('country_id')
+    # def validar_Pais(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.country_id.name == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun Pais, favor de asignarlo primera" % (self.name))
+    #
+    # @api.constrains('numero_ext')
+    # def validar_No_Exterior(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.numero_ext == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignada ningun No Exterior, favor de asignarlo primera" % (self.name))
+    #
+    # @api.constrains('state_id')
+    # def validar_No_Exterior(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.state_id.name == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignad ningun Estado, favor de asignarlo primero" % (self.name))
 
 
 class NotificaCFDI(models.Model):
