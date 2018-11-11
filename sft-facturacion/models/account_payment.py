@@ -13,6 +13,7 @@ from odoo import api, fields, models
 
 import logging
 from odoo import models, fields, api,_
+import math
 
 class AccountPayment(models.Model):
     _name = 'account.payment'
@@ -22,25 +23,49 @@ class AccountPayment(models.Model):
 
     @api.model
     def default_get(self, fields):
-        print("Entra a Default get")
+        print("default_get")
         rec = super(AccountPayment, self).default_get(fields)
-        #rec['ref'] = rec['communication'];
+        #self.imp_saldo_ant = self.invoice_ids.residual;
+        context = dict(self._context or {})
 
+        active_model = context.get('active_model')
+        active_ids = context.get('active_ids')
+        if active_model != None:
+            invoices = self.env[active_model].browse(active_ids)
+            rec['imp_saldo_ant'] = invoices.residual;
+            rec['moneda_factura'] = invoices.currency_id.name;
+            print(invoices.currency_id.name)
         return rec
+
+    @api.model
+    def create(self, vals):
+        return super(AccountPayment, self).create(vals)
+
+    @api.one
+    def compute_default(self):
+        print("compute_default")
+        self.imp_saldo_ant = self.invoice_ids.residual;
+        self.moneda_factura = self.invoice_ids.invoices.currency_id.name;
 
     id_banco_seleccionado= fields.Integer('id_banco_seleccionado')
     formadepagop_id = fields.Many2one('catalogos.forma_pago',string='Forma de pago')
     moneda_p = fields.Many2one('res.currency',string='Moneda', default=lambda self: self.env.user.company_id.currency_id)
-    tipocambiop = fields.Char('Tipo de cambio')
+    moneda_factura = fields.Char(string='Moneda Factura', store=False)
+    tipocambiop = fields.Char('Tipo de cambio a MXN')
+    tipocambio_oper = fields.Char('Tipo de operacion')
     uuid = fields.Char(string="UUID",readonly=True)
     no_parcialidad = fields.Char(string='No. Parcialidad')
     imp_pagado = fields.Monetary('Importe Pagado')
+    #imp_saldo_ant = fields.Monetary('Importe Saldo Anterior', default=lambda self: self.invoice_ids.residual)
     imp_saldo_ant = fields.Monetary('Importe Saldo Anterior')
     imp_saldo_insoluto = fields.Monetary('Importe Saldo Insoluto')
     timbrada = fields.Char('CFDI',default="Sin Timbrar",readonly=True)
     fac_id = fields.Char()
     pdf = "Factura?Accion=descargaPDF&fac_id=";
     xml = "Factura?Accion=ObtenerXML&fac_id=";
+
+    calculo = fields.Char("calculo", store=True, compute='compute_default')
+
 
 
     def establecer_uso_de_cfdi(self):
@@ -115,10 +140,10 @@ class AccountPayment(models.Model):
     puede_editar = fields.Boolean(string='Puede Editar',store=False,compute=_obtPuede_Editar)
 
     #@api.onchange('currency_id')
-    @api.onchange('moneda_p')
-    def _onchange_actualiza_tipo_cambio(self):
-        print self.moneda_p.rate
-        self.tipocambiop = self.moneda_p.rate
+    # @api.onchange('moneda_p')
+    # def _onchange_actualiza_tipo_cambio(self):
+    #     print self.moneda_p.rate
+    #     self.tipocambiop = self.moneda_p.inverse_rate
 
     @api.one
     @api.depends('formadepagop_id.c_forma_pago')
@@ -134,12 +159,217 @@ class AccountPayment(models.Model):
         self.id_banco_seleccionado = self.nom_banco_ord_ext_id.id
             
 
-    @api.onchange('journal_id')
+    @api.multi
+    @api.onchange('journal_id','currency_id')
     def _onchange_actualiza_datos_bancarios(self):
-        if self.journal_id.type == "bank":
-            self.cta_beneficiario=self.journal_id.bank_acc_number
-            self.rfc_emisor_cta_ben=self.journal_id.rfc_institucion_bancaria
-            self.tipocambiop = self.currency_id.rate
+        for record in self:
+            self._calculaTipoCambio(record);
+            self.GuardaGeneralesPago(record);
+
+    @api.multi
+    @api.onchange('amount')
+    def _onchange_actualiza_amount(self):
+        for record in self:
+            self.GuardaGeneralesPago(record);
+
+    @api.multi
+    @api.onchange('tipocambiop')
+    def _onchangeTipoCambioP(self):
+        for record in self:
+            self.GuardaGeneralesPago(record);
+
+    @api.multi
+    @api.onchange('tipocambio_oper')
+    def _onchangeTipoCambioOper(self):
+        if "MXN" == self.invoice_ids.currency_id.name:
+            self.tipocambiop = self.tipocambio_oper
+        for record in self:
+            self.GuardaGeneralesPago(record);
+
+    def _calculaTipoCambio(self, record):
+        model_currency = self.env['res.currency'];
+        record.tipocambio_oper = record.currency_id.round(model_currency.with_context(date=self.payment_date)._get_conversion_rate(record.currency_id, record.invoice_ids.currency_id))
+
+        currency_pesos = model_currency.search([('name', '=', 'MXN')])
+        if currency_pesos == None or len(currency_pesos)==0:
+            self.tipocambiop = 1;
+        else:
+            self.tipocambiop =  currency_pesos[0].round(1/model_currency.with_context(date=self.payment_date)._get_conversion_rate(currency_pesos[0],record.currency_id))
+
+
+    # def _compute_total_invoices_amount(self):
+    #     print("_compute_total_invoices_amount")
+    #     """ Compute the sum of the residual of invoices, expressed in the payment currency """
+    #     if self.tipocambio_oper!= None and self.tipocambio_oper != False:
+    #         payment_currency = self.currency_id or self.journal_id.currency_id or self.journal_id.company_id.currency_id or self.env.user.company_id.currency_id
+    #         invoices = self._get_invoices()
+    #
+    #         if all(inv.currency_id == payment_currency for inv in invoices):
+    #             total = sum(invoices.mapped('residual_signed'))
+    #         else:
+    #             total = 0
+    #             for inv in invoices:
+    #                 if inv.company_currency_id != payment_currency:
+    #                     total += inv.company_currency_id.with_context(date=self.payment_date).compute(inv.residual_company_signed, payment_currency)
+    #                 else:
+    #                     total += inv.residual_company_signed
+    #         return abs(total)
+    #     else:
+    #         payment_currency = self.currency_id or self.journal_id.currency_id or self.journal_id.company_id.currency_id or self.env.user.company_id.currency_id
+    #         invoices = self._get_invoices()
+    #
+    #         if all(inv.currency_id == payment_currency for inv in invoices):
+    #             total = sum(invoices.mapped('residual_signed'))
+    #         else:
+    #             total = 0
+    #             for inv in invoices:
+    #                 if inv.company_currency_id != payment_currency:
+    #                     total += inv.company_currency_id.with_context(date=self.payment_date).compute(inv.residual_company_signed, payment_currency)
+    #                 else:
+    #                     total += inv.residual_company_signed
+    #         return abs(total)
+
+
+    @api.one
+    @api.depends('invoice_ids', 'amount', 'payment_date', 'currency_id', 'tipocambio_oper')
+    def _compute_payment_difference(self):
+        #print("_compute_payment_difference")
+        self.calcula_montos(self.amount)
+        if len(self.invoice_ids) == 0:
+            return
+        if self.invoice_ids[0].type in ['in_invoice', 'out_refund']:
+            self.payment_difference = self.amount - self._compute_total_invoices_amount()
+        else:
+            self.payment_difference = self._compute_total_invoices_amount() - self.amount
+
+
+    # @api.model
+    # def compute_amount_fields(self, amount, src_currency, company_currency, invoice_currency=False):
+    #     """ Helper function to compute value for fields debit/credit/amount_currency based on an amount and the currencies given in parameter"""
+    #     amount_currency = False
+    #     currency_id = False
+    #     if src_currency and src_currency != company_currency:
+    #         amount_currency = amount
+    #         amount = src_currency.with_context(self._context).compute(amount, company_currency)
+    #         currency_id = src_currency.id
+    #     debit = amount > 0 and amount or 0.0
+    #     credit = amount < 0 and -amount or 0.0
+    #     if invoice_currency and invoice_currency != company_currency and not amount_currency:
+    #         amount_currency = src_currency.with_context(self._context).compute(amount, invoice_currency)
+    #         currency_id = invoice_currency.id
+    #     return debit, credit, amount_currency, currency_id
+
+
+
+
+    #def calcula_montos(self, amount, src_currency, company_currency, invoice_currency=False):
+    def calcula_montos(self, amount):
+        """ Helper function to compute value for fields debit/credit/amount_currency based on an amount and the currencies given in parameter"""
+        amount_currency = False
+        currency_id = False
+        amount_currency = amount
+        #amount = amount_currency * self.tipocambio_oper;
+        amount = (Decimal(amount_currency))* (Decimal(self.tipocambio_oper));
+
+
+        debit = amount > Decimal(0) and amount or Decimal(0.0)
+        credit = amount < Decimal(0) and -Decimal(amount) or 0.0
+        #print("---------------------------")
+        #print(amount)
+        return debit, credit, Decimal(amount)
+
+    def _create_payment_entry(self, amount):
+        if (self.payment_type == 'outbound'):
+            return super(AccountPayment, self)._create_payment_entry(amount);
+
+
+        #print("_create_payment_entry")
+        """ Create a journal entry corresponding to a payment, if the payment references invoice(s) they are reconciled.
+            Return the journal entry.
+        """
+        aml_obj = self.env['account.move.line'].with_context(check_move_validity=False)
+        invoice_currency = False
+        if self.invoice_ids and all([x.currency_id == self.invoice_ids[0].currency_id for x in self.invoice_ids]):
+            #if all the invoices selected share the same currency, record the paiement in that currency too
+            invoice_currency = self.invoice_ids[0].currency_id
+        #debit, credit, amount_currency, currency_id = aml_obj.with_context(date=self.payment_date).compute_amount_fields(amount, self.currency_id, self.company_id.currency_id, invoice_currency)
+        debit, credit, amount_currency = self.calcula_montos(amount)
+        #print("Importe calculado ")
+        #print(amount_currency)
+        currency_id = self.invoice_ids[0].currency_id.id;
+
+        move = self.env['account.move'].create(self._get_move_vals())
+
+        #Write line corresponding to invoice payment
+        counterpart_aml_dict = self._get_shared_move_line_vals(debit, credit, amount_currency, move.id, False)
+        counterpart_aml_dict.update(self._get_counterpart_move_line_vals(self.invoice_ids))
+        counterpart_aml_dict.update({'currency_id': currency_id})
+        counterpart_aml = aml_obj.create(counterpart_aml_dict)
+
+        #Reconcile with the invoices
+        if self.payment_difference_handling == 'reconcile' and self.payment_difference:
+            writeoff_line = self._get_shared_move_line_vals(0, 0, 0, move.id, False)
+            amount_currency_wo, currency_id = aml_obj.with_context(date=self.payment_date).compute_amount_fields(self.payment_difference, self.currency_id, self.company_id.currency_id, invoice_currency)[2:]
+            # the writeoff debit and credit must be computed from the invoice residual in company currency
+            # minus the payment amount in company currency, and not from the payment difference in the payment currency
+            # to avoid loss of precision during the currency rate computations. See revision 20935462a0cabeb45480ce70114ff2f4e91eaf79 for a detailed example.
+            total_residual_company_signed = sum(invoice.residual_company_signed for invoice in self.invoice_ids)
+            total_payment_company_signed = self.currency_id.with_context(date=self.payment_date).compute(self.amount, self.company_id.currency_id)
+            if self.invoice_ids[0].type in ['in_invoice', 'out_refund']:
+                amount_wo = total_payment_company_signed - total_residual_company_signed
+            else:
+                amount_wo = total_residual_company_signed - total_payment_company_signed
+            # Align the sign of the secondary currency writeoff amount with the sign of the writeoff
+            # amount in the company currency
+            if amount_wo > 0:
+                debit_wo = amount_wo
+                credit_wo = 0.0
+                amount_currency_wo = abs(amount_currency_wo)
+            else:
+                debit_wo = 0.0
+                credit_wo = -amount_wo
+                amount_currency_wo = -abs(amount_currency_wo)
+            writeoff_line['name'] = _('Counterpart')
+            writeoff_line['account_id'] = self.writeoff_account_id.id
+            writeoff_line['debit'] = debit_wo
+            writeoff_line['credit'] = credit_wo
+            writeoff_line['amount_currency'] = amount_currency_wo
+            writeoff_line['currency_id'] = currency_id
+            writeoff_line = aml_obj.create(writeoff_line)
+            if counterpart_aml['debit']:
+                counterpart_aml['debit'] += credit_wo - debit_wo
+            if counterpart_aml['credit']:
+                counterpart_aml['credit'] += debit_wo - credit_wo
+            counterpart_aml['amount_currency'] -= amount_currency_wo
+        self.invoice_ids.register_payment(counterpart_aml)
+
+        #Write counterpart lines
+        if not self.currency_id != self.company_id.currency_id:
+            amount_currency = 0
+        liquidity_aml_dict = self._get_shared_move_line_vals(credit, debit, -amount_currency, move.id, False)
+        liquidity_aml_dict.update(self._get_liquidity_move_line_vals(-amount))
+        aml_obj.create(liquidity_aml_dict)
+
+        move.post()
+        return move
+
+
+    def _compute_total_invoices_amount(self):
+        print("_compute_total_invoices_amount")
+        """ Compute the sum of the residual of invoices, expressed in the payment currency """
+        payment_currency = self.currency_id or self.journal_id.currency_id or self.journal_id.company_id.currency_id or self.env.user.company_id.currency_id
+        invoices = self._get_invoices()
+
+        if all(inv.currency_id == payment_currency for inv in invoices):
+            total = sum(invoices.mapped('residual_signed'))
+        else:
+            total = 0
+            for inv in invoices:
+                if inv.company_currency_id != payment_currency:
+                    total += inv.company_currency_id.with_context(date=self.payment_date).compute(inv.residual_company_signed, payment_currency)
+                else:
+                    total += inv.residual_company_signed
+        return abs(total)
 
     # Coloca la informacion del metodo onchange que se encuentra como readonly
     @api.constrains('journal_id')
@@ -161,8 +391,8 @@ class AccountPayment(models.Model):
                                 Anteriormente utilizaba del banco del diario para realizar este paso de informacion, pero con la nueva forma
                                 a quedado obsoleto por lo que ha sido comentado en caso de que sea requerido para instalaciones anteriores"""
                                 #self.nom_banco_ord_ext_id = self.journal_id.bank_id.name
-                                self.rfc_emisor_cta_ben = self.journal_id.rfc_institucion_bancaria
-                                self.tipocambiop = self.currency_id.rate
+                                #self.rfc_emisor_cta_ben = self.journal_id.rfc_institucion_bancaria
+                                #self.tipocambiop = self.currency_id.inverse_rate
                             if self.formadepagop_id.rfc_emisor_cta_benef != "No":
                                 # Valida el patron de la cuenta Beneficiara
                                 patron_cta_benef = self.formadepagop_id.patron_cta_benef
@@ -184,36 +414,63 @@ class AccountPayment(models.Model):
                 else:
                     raise ValidationError("No ha ingresado la forma de pago")
 
+    @api.multi
     def Validar_y_Timbrar_Pago(self):
-        self.GuardaGeneralesPago();
-        self.post()
-        self.generar_timbre();
+        for record in self:
+            if record.payment_type == "inbound":
+                if self.state != "posted":
+                    self.GuardaGeneralesPago(record);
+                    self.post()
+                self.generar_timbre();
 
     def Validar_Pago(self):
-        self.GuardaGeneralesPago();
-        self.post()
+        if self.payment_type == "inbound":
+            self.GuardaGeneralesPago(self);
+            self.post();
+
+        if self.payment_type == "outbound":
+            self.post()
+
 
     def _validacionTimbre(self):
-        print self.sustituye_pago
-        print self.pago_sustituye
         if self.sustituye_pago == True and (self.pago_sustituye.id == False or self.pago_sustituye.id == None):
             raise ValidationError("No se ha seleccionado el pago a sustituir")
 
-    def GuardaGeneralesPago(self):
-        factura = self.env['account.invoice'].search([('number', '=', self.ref)])
-        print(self.payment_type)
+    def GuardaGeneralesPago(self, record):
         if self.payment_type == "inbound":
             # Incremento el numero de parcilidad
-            par = str(int(self.invoice_ids.no_parcialidad) + 1)
-            self.invoice_ids.no_parcialidad = par
+            par = str(int(record.invoice_ids.no_parcialidad) + 1)
+            #self.invoice_ids.no_parcialidad = par
+            record.no_parcialidad = par
+            residual_antes_de_pago = record.invoice_ids.residual
+            record.imp_saldo_ant = residual_antes_de_pago;
 
-        self.no_parcialidad = par
-        residual_antes_de_pago = self.invoice_ids.residual
-        self.imp_saldo_ant = residual_antes_de_pago;
-        self.imp_pagado = self.amount;
-        self.imp_saldo_insoluto = (Decimal(self.imp_saldo_ant))-(Decimal(self.imp_pagado))
 
-        self.moneda_p = self.currency_id.id;
+            if record.journal_id.type == "bank":
+                record.cta_beneficiario=record.journal_id.bank_acc_number
+                record.rfc_emisor_cta_ben=record.journal_id.rfc_institucion_bancaria
+                #self.tipocambiop = self.currency_id.inverse_rate
+
+                record.imp_saldo_ant = record.invoice_ids.residual;
+                if record.currency_id == record.invoice_ids.currency_id and record.currency_id.name == 'USD':
+                    record.imp_pagado = record.amount;
+                else:
+                    valor_antes = (Decimal(record.amount))* (Decimal(record.tipocambio_oper));
+                    print(valor_antes)
+                    record.imp_pagado = (math.floor(valor_antes * 100)/100.0) if round else valor_antes
+                    print(record.imp_pagado)
+                    #record.imp_pagado = (Decimal(record.amount))* (Decimal(record.tipocambio_oper));
+
+                    #print(math.floor(record.imp_pagado))
+                    #record.imp_pagado = record.currency_id.round(record.imp_pagado) if round else record.imp_pagado
+                    #record.imp_pagado = (math.floor(record.imp_pagado*100)/100) if round else record.imp_pagado
+
+                record.imp_saldo_insoluto = (Decimal(record.imp_saldo_ant))-(Decimal(record.imp_pagado))
+
+
+            #record.write({'imp_saldo_insoluto':record.imp_saldo_insoluto})
+
+        #self.moneda_p = self.currency_id.id;
 
 
     @api.multi
@@ -319,16 +576,17 @@ class AccountPayment(models.Model):
                     "con_total": "0.0"
                 }],
                 "emisor_id": str(self.env.user.company_id.company_registry),
-                "fac_no_orden": factura.number,
+                "fac_no_orden": self.name,
                 "fac_emisor_regimen_fiscal_descripcion": self.env.user.company_id.property_account_position_id.name,
                 "fac_emisor_regimen_fiscal_key": self.env.user.company_id.property_account_position_id.c_regimenfiscal,
                 "pago": {
                     "fecha_pago": fecha_pago,
                     "forma_de_pago": str(self.formadepagop_id.c_forma_pago),
-                    "moneda": str(self.moneda_p.name),
+                    "moneda": str(self.currency_id.name),
                     "tipo_cambio": str(self.tipocambiop),
-                    "monto": str(self.imp_pagado),
-                    "num_operacion": "01",
+                    #"monto": str(self.imp_pagado),
+                    "monto": str(self.amount),
+                    "num_operacion": self.no_operacion,
                     #"rfc_emisor_cta_ord": str(factura.partner_id.nif),
                     "rfc_emisor_cta_ord": str(self.rfc_emisor_cta_ord),
                     "nom_banco_ord_ext_id": str(self.nom_banco_ord_ext_id.c_nombre),
@@ -338,10 +596,10 @@ class AccountPayment(models.Model):
                     "documentos": [
                         {
                             "id_documento": str(factura.uuid),
-                            "serie": "A4055",
-                            "folio": "2154",
+                            "serie": factura.fac_serie,
+                            "folio": factura.fac_folio,
                             "moneda_dr": str(factura.currency_id.name),
-                            "tipo_cambio_dr": "1",
+                            "tipo_cambio_dr": str(self.tipocambio_oper),
                             "metodo_de_pago_dr": 'PPD',
                             "num_parcialidad": str(self.no_parcialidad),
                             "imp_pagado": str(self.imp_pagado),

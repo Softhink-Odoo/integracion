@@ -47,6 +47,7 @@ var ShowPaymentLineWidget = form_common.AbstractField.extend({
                             'currency': info.content[v].currency,
                             'position': info.content[v].position,
                             'payment_id': info.content[v].payment_id,
+                            'payment_pago_id': info.content[v].payment_pago_id,
                             'move_id': info.content[v].move_id,
                             'ref': info.content[v].ref,
                             'id': info.content[v].id,
@@ -74,6 +75,8 @@ var ShowPaymentLineWidget = form_common.AbstractField.extend({
                         var move_id = parseInt($(this).attr('move-id'))
                         //var payment_id = parseInt($(this).attr('payment_id'))
                         var payment_id = parseInt($(this).attr('payment-id'))
+                        var payment_pago_id = parseInt($(this).attr('payment-pago-id'))
+
                         /*if (move_id !== undefined && move_id !== NaN){
                             //Open form view of account.move with id = move_id
                             console.log("simon");
@@ -87,10 +90,10 @@ var ShowPaymentLineWidget = form_common.AbstractField.extend({
                             });
                         }*/
 
-                        if (payment_id !== undefined && payment_id !== NaN){
+                        if (payment_pago_id !== undefined && payment_pago_id !== NaN){
                             //Open form view of account.move with id = move_id
                             console.log("simon");
-                            console.log(payment_id);
+                            console.log(payment_pago_id);
 
 
                             //var model_obj = new instance.web.Model('ir.model.data');
@@ -98,14 +101,14 @@ var ShowPaymentLineWidget = form_common.AbstractField.extend({
 
                             var model_obj = new Model('ir.model.data');
                             var view_id = false;
-                            model_obj.call('get_object_reference',['sft_facturacion','account_payment_sat_invoice_view']).then( function(result){
+                            model_obj.call('get_object_reference',['sft-facturacion','account_payment_sat_invoice_view']).then( function(result){
                                 view_id = result[1];
                                 console.log(view_id);
                                     self.do_action({
                                     type: 'ir.actions.act_window',
                                     res_model: 'account.payment',
                                     view_type: 'form',
-                                    res_id: payment_id,
+                                    res_id: payment_pago_id,
                                     view_id :view_id,
                                     //views: [[view_id, 'form']],
                                     views: [[false, 'form']],

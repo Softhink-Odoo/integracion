@@ -11,13 +11,38 @@
                 <field name="state" widget="statusbar" nolabel="1" statusbar_visible="draft,timbrada,timbrado cancelado,open,paid" statusbar_colors='{"validate":"blue","draft":"red"}'/>
             </xpath>
 
+             <xpath expr="//field[@name='partner_id']" position="before">
+                <separator string="Emisor" colspan="2"/>
+                <field name="rfc_emisor" attrs="{'readonly':[('state','!=','draft')]}"/>
+                <field name="compania_calle"/>
+                <field name="compania_ciudad"/>
+                <field name="compania_pais"/>
+                <field name="compania_estado"/>
+                <!--<field name="forma_pago_id" attrs="{'readonly':[('state','!=','draft')]}"/>-->
+                <field name="forma_pago_id" attrs="{'readonly':[('fac_timbrada','!=','Sin Timbrar')]}"/>
+                <field name="codigo_postal_id"  attrs="{'readonly':[('fac_timbrada','!=','Sin Timbrar')]}" />
+                <field name="tipo_de_relacion_id" attrs="{'invisible':[('type','=','out_invoice')]}"/>
+
+                <field name="cfdi_relacionados" class="oe_read_only" attrs="{'invisible':[('type','=','out_invoice')]}"/>
+                <field name = "no_parcialidad" attrs="{'invisible': [('no_parcialidad','=','0')]}"/>
+                <field name="puede_pagar" invisible="1"/>
+            </xpath>
+
              <xpath expr="//button[@name='action_invoice_cancel']" position="replace">
                     <button name="action_invoice_cancel" type="object" invisible="1" string="Cancel Invoice" />
                 </xpath>
 
 
+
+             <xpath expr="//button[@name='action_invoice_draft']" position="attributes">
+                 <attribute name="invisible">True</attribute>
+             </xpath>
+
+
             <xpath expr="/form/header/button" position="after">
-                <button name="empezar_a_pagar" string="Empezar a Pagar" states="timbrada,validate" type="object"/>
+                <!--states="timbrada,validate"-->
+                <!--<button name="empezar_a_pagar" string="Empezar a Pagar"  attrs="{'invisible':['&amp;',('fac_estatus_cancelacion','==','En proceso'), ('fac_estatus_cancelacion','not in',['timbrada','validate'])]}" type="object"/>-->
+                <button name="empezar_a_pagar" string="Empezar a Pagar" attrs="{'invisible':[('puede_pagar','=',True)]}"  type="object"/>
                 <!--<button name="descargar_factura_pdf" type="object" states="timbrada,open,paid,timbrado cancelado" attrs="{'visible':[('fac_timbrada','=','Timbrada')]}" string="Descargar Factura PDF" icon="fa-file-pdf-o"/>-->
                 <button name="descargar_factura_pdf" type="object"
                         attrs="{'invisible':[('fac_timbrada','==','Sin Timbrar')]}"
@@ -38,21 +63,7 @@
                 </xpath>
 
 
-            <xpath expr="//field[@name='partner_id']" position="before">
-                <separator string="Emisor" colspan="2"/>
-                <field name="rfc_emisor" attrs="{'readonly':[('state','!=','draft')]}"/>
-                <field name="compania_calle"/>
-                <field name="compania_ciudad"/>
-                <field name="compania_pais"/>
-                <field name="compania_estado"/>
-                <!--<field name="forma_pago_id" attrs="{'readonly':[('state','!=','draft')]}"/>-->
-                <field name="forma_pago_id" attrs="{'readonly':[('fac_timbrada','!=','Sin Timbrar')]}"/>
-                <field name="codigo_postal_id"  attrs="{'readonly':[('fac_timbrada','!=','Sin Timbrar')]}" />
-                <field name="tipo_de_relacion_id" attrs="{'invisible':[('type','=','out_invoice')]}"/>
 
-                <field name="cfdi_relacionados" class="oe_read_only" attrs="{'invisible':[('type','=','out_invoice')]}"/>
-                <field name = "no_parcialidad" attrs="{'invisible': [('no_parcialidad','=','0')]}"/>
-            </xpath>
 
             <xpath expr="//field[@name='partner_id']" position="attributes">
                 <attribute name="invisible">True</attribute>
@@ -63,8 +74,7 @@
                 <separator string="CFDI" colspan="2"/>
                 <field name="fac_timbrada" style="color:#2A76C1;"/>
                 <field name="uuid"  style="color:#2A76C1;" class="oe_read_only"/>
-
-                <!--<field name="fac_estatus_cancelacion" attrs="{'invisible': [('fac_timbrada','!=','Timbre Cancelado')]}" style="color:#2A76C1;" class="oe_read_only"/>-->
+                <field name="fac_estatus_cancelacion" attrs="{'invisible': [('fac_estatus_cancelacion','=','')]}" style="color:#2A76C1;" class="oe_read_only"/>
             </xpath>
 
             <xpath expr="//field[@name='date_invoice']" position="replace">
@@ -87,6 +97,11 @@
             </xpath>
             <xpath expr="//field[@name='outstanding_credits_debits_widget']" position="replace">
                 <field name="outstanding_credits_debits_widget" colspan="2" nolabel="1" widget="payment" attrs="{'invisible': [('state', 'not in', ['open','canceled'] )]}"/>
+            </xpath>
+
+            <!--<xpath expr="//field[@name='currency_id']" position="after">-->
+            <xpath expr="//div[@groups='base.group_multi_currency']" position="after">
+                <field string="Tipo de cambio" readonly="1" name="tipo_cambio"/>
             </xpath>
 
 
@@ -123,6 +138,7 @@
             <field name="uuid"/>
             <field name="fac_folio"/>
             <field name="fac_serie"/>
+            <field name="fac_estatus_cancelacion"/>
         </xpath>
 
       </field>
@@ -161,6 +177,16 @@
         </field>
       </record>
 
+      <record id="action_account_invoice_payment_sft" model="ir.actions.act_window">
+            <field name="name">Register Payment</field>
+            <field name="res_model">account.payment</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">form</field>
+            <field name="view_id" ref="account_payment_sat_invoice_view"/>
+            <field name="context">{'default_invoice_ids': [(4, active_id, None)],'default_imp_saldo_ant':residual}</field>
+            <field name="target">new</field>
+        </record>
+
 
 
   </data>
@@ -168,7 +194,7 @@
 
     <template id="assets_backend" name="account assets" inherit_id="web.assets_backend">
         <xpath expr="//script[@src='/account/static/src/js/account_payment_widget.js']" position="replace">
-            <script type="text/javascript" src="/sft_facturacion/static/src/js/account_payment_field.js"></script>
+            <script type="text/javascript" src="/sft-facturacion/static/src/js/account_payment_field.js"></script>
         </xpath>
     </template>
 

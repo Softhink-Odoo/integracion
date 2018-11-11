@@ -8,6 +8,6 @@ from . import res_company
 from . import sft_ayuda
 from . import pos_order
 from . import account_invoice_line
-#from . import sale_order_global_invoice
-#from . import SATPendienteCancelar
+from . import sale_order_global_invoice
+from . import SATPendienteCancelar
 #from . import cfdi_alarm

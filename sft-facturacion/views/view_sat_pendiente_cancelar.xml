@@ -4,7 +4,7 @@
       <field name="name">account.sat_pendiente_cancelacion.tree</field>
       <field name="model">account.sat_pendiente_cancelacion</field>
       <field name="arch" type="xml">
-        <tree create="false">
+        <tree create="false" default_order='id desc'>
           <field name="UUID"/>
           <field name="estado"/>
           <field name="fecha_respuesta"/>
@@ -116,6 +116,6 @@
       </record>
 
     <!--<menuitem name="SFT-Ayuda" id="sft_ayuda1_menu_principal"/>-->
-    <menuitem name="Aceptar Cancelación" id="account_SATPendienteCancelacion" action="action_account_SATPendienteCancelacion" parent="account.menu_finance_receivables"/>
+    <menuitem name="Aceptar Cancelación" id="account_SATPendienteCancelacion" action="action_account_SATPendienteCancelacion" parent="account.menu_finance_payables"/>
   </data>
 </odoo>

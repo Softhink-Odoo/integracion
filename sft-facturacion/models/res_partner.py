@@ -33,12 +33,12 @@ class RFCClientes(models.Model):
 
     partner_notifica_ids = fields.One2many('res.partner.notifica', 'partner_id', string='Notificaciones', copy=False)
 
-    @api.constrains('colonia')
-    def validar_Municipio(self):
-        if self.customer== True:
-            if self.cfdi == True:
-                if self.municipio == False:
-                        raise ValidationError("Error de Validacion : El cliente %s no tiene asignado ningun municipio, favor de asignarlo primera" % (self.name))
+    # @api.constrains('colonia')
+    # def validar_Municipio(self):
+    #     if self.customer== True:
+    #         if self.cfdi == True:
+    #             if self.municipio == False:
+    #                     raise ValidationError("Error de Validacion : El cliente %s no tiene asignado ningun municipio, favor de asignarlo primera" % (self.name))
 
     @api.constrains('rfc_cliente','country_id')
     def validar_RFC(self):

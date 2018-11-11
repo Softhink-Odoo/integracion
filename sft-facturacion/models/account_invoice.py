@@ -19,6 +19,8 @@ from odoo.exceptions import UserError, RedirectWarning, ValidationError
 
 import odoo.addons.decimal_precision as dp
 import logging
+from pytz import timezone
+import time, pytz
 
 
 
@@ -56,6 +58,17 @@ class localizacion_mexicana(models.Model):
     def default_company_estado(self):
         return self.env.user.company_id.state_id.name
 
+    @api.one
+    def puede_empezar_pagar(self):
+        None;
+        if self.state == 'timbrada' or self.state == 'validate':
+            self.puede_pagar = False;
+
+            return False;
+
+        self.puede_pagar = True;
+        return True;
+
     #Variables de la compañia
     compania_calle = fields.Char(string='Calle',readonly=True,default=default_company_calle)
     compania_ciudad = fields.Char(string='Ciudad',readonly=True,default=default_company_ciudad)
@@ -92,7 +105,10 @@ class localizacion_mexicana(models.Model):
     fac_timbrada = fields.Char('CFDI',default="Sin Timbrar",readonly=True, copy=False)
     fac_folio = fields.Char('Folio CFDI',readonly=True, copy=False)
     fac_serie = fields.Char('Serie CFDI',readonly=True, copy=False)
-    #fac_estatus_cancelacion = fields.Char("Estatus Cancelación",default="", copy=False)
+    fac_estatus_cancelacion = fields.Char("Estatus Cancelación",default="", copy=False)
+    tipo_cambio = fields.Float('Tipo de cambio')
+
+    puede_pagar = fields.Boolean("Puede pagar", store=False, compute=puede_empezar_pagar);
 
     #Carga El RFC del Cliente Seleccionado
     @api.onchange('partner_id')
@@ -106,6 +122,121 @@ class localizacion_mexicana(models.Model):
                 self.metodo_pago_id = self.partner_id.metodo_pago_id.id
             if self.partner_id.uso_cfdi_id.c_uso_cfdi!=False:
                 self.uso_cfdi_id = self.partner_id.uso_cfdi_id.id
+
+    @api.onchange('currency_id','date_invoice')
+    def _onchange_currency_id(self):
+        print("_onchange_currency_id")
+        if self.currency_id == self.env.user.company_id.currency_id:
+            self.tipo_cambio = 1;
+            return;
+
+
+        if self.date_invoice == None or self.date_invoice == False:
+            return;
+
+        currency = self.currency_id
+        tipo_cambio  = currency.with_context(dict(self._context or {}, date=self.date_invoice))
+        print(tipo_cambio)
+        if tipo_cambio != None:
+            print(tipo_cambio.inverse_rate)
+            self.tipo_cambio = tipo_cambio.inverse_rate;
+
+        return;
+
+
+    def convert_TZ_UTC(self, TZ_datetime):
+        os.environ['TZ'] = 'America/Mexico_City'
+        #time.tzset()
+        pytz.timezone("America/Mexico_City")
+
+        # tz_orig = os.environ['TZ']
+        # tz=tz_orig
+        # try:
+        #     if (tz != tz_orig):
+        #         os.environ['TZ'] = tz
+        #         time.tzset()
+        #
+        #     dt = datetime.datetime.fromtimestamp(utc)
+        #     return (dt.strftime("%Y%m%d"), dt.strftime("%H%M%S"))
+        #
+        # finally:
+        #
+        #     if (os.environ['TZ'] != tz_orig):
+        #         os.environ['TZ'] = tz_orig
+        #         time.tzset()
+
+
+        fmt = "%Y-%m-%d %H:%M:%S"
+        # Current time in UTC
+        now_utc = datetime.now(timezone('UTC'))
+        #print("default_tmz")
+        #print(now_utc)
+        # Convert to current user time zone
+        now_timezone = now_utc.astimezone(timezone(self.env.user.tz))
+        UTC_OFFSET_TIMEDELTA = datetime.strptime(now_utc.strftime(fmt), fmt) - datetime.strptime(now_timezone.strftime(fmt), fmt)
+        local_datetime = datetime.strptime(TZ_datetime, fmt)
+        result_utc_datetime = local_datetime + UTC_OFFSET_TIMEDELTA
+        return result_utc_datetime.strftime(fmt)
+
+    # @api.onchange('product_id')
+    # def _onchange_product_id_sft(self):
+    #     domain = {}
+    #     if not self.invoice_id:
+    #         return
+    #
+    #     part = self.invoice_id.partner_id
+    #     fpos = self.invoice_id.fiscal_position_id
+    #     company = self.invoice_id.company_id
+    #     currency = self.invoice_id.currency_id
+    #     type = self.invoice_id.type
+    #
+    #     if not part:
+    #         warning = {
+    #                 'title': _('Warning!'),
+    #                 'message': _('You must first select a partner!'),
+    #             }
+    #         return {'warning': warning}
+    #
+    #     if not self.product_id:
+    #         if type not in ('in_invoice', 'in_refund'):
+    #             self.price_unit = 0.0
+    #         domain['uom_id'] = []
+    #     else:
+    #         if part.lang:
+    #             product = self.product_id.with_context(lang=part.lang)
+    #         else:
+    #             product = self.product_id
+    #
+    #         self.name = product.partner_ref
+    #         account = self.get_invoice_line_account(type, product, fpos, company)
+    #         if account:
+    #             self.account_id = account.id
+    #         self._set_taxes()
+    #
+    #         if type in ('in_invoice', 'in_refund'):
+    #             if product.description_purchase:
+    #                 self.name += '\n' + product.description_purchase
+    #         else:
+    #             if product.description_sale:
+    #                 self.name += '\n' + product.description_sale
+    #
+    #         if not self.uom_id or product.uom_id.category_id.id != self.uom_id.category_id.id:
+    #             self.uom_id = product.uom_id.id
+    #         domain['uom_id'] = [('category_id', '=', product.uom_id.category_id.id)]
+    #
+    #         if company and currency:
+    #             if company.currency_id != currency:
+    #                 print("Antes")
+    #                 print(self.invoice_id.date_invoice)
+    #                 print("Despues")
+    #                 print(self.convert_TZ_UTC(self.invoice_id.date_invoice))
+    #                 self.price_unit = self.price_unit * currency.with_context(dict(self._context or {}, date=self.convert_TZ_UTC(self.invoice_id.date_invoice))).rate
+    #
+    #             if self.uom_id and self.uom_id.id != product.uom_id.id:
+    #                 self.price_unit = product.uom_id._compute_price(self.price_unit, self.uom_id)
+    #     return {'domain': domain}
+
+
 
     @api.constrains('state')
     def limpiar_uuid_al_duplicar_factura(self):
@@ -382,7 +513,7 @@ class localizacion_mexicana(models.Model):
         "fac_metodo_pago_key" : self.metodo_pago_id.c_metodo_pago,
         "fac_tipo_comprobante" : "I" ,
         "fac_moneda": self.currency_id.name,
-        "fac_tipo_cambio": self.currency_id.rate,
+        "fac_tipo_cambio": self.currency_id.inverse_rate,
         "fac_lugar_expedicion": self.codigo_postal_id.c_codigopostal,
         "conceptos" :
             conceptos,
@@ -434,32 +565,75 @@ class localizacion_mexicana(models.Model):
         #La decodifica en formato hexadecimal
         encrypted=algorithim.hexdigest()
         conceptos = []
-        receptor = ""
+        receptor = {}
         if self.partner_id.nif!= False:
-            receptor = {
-            "receptor_id": self.rfc_cliente_factura,
-            "compania":self.partner_id.name.encode('utf-8'),
-            "calle": self.partner_id.street.encode('utf-8'),
-            "ciudad":self.partner_id.city.encode('utf-8'),
-            "correo":self.partner_id.email.encode('utf-8'),
-            "colonia":self.partner_id.colonia.encode('utf-8'),
-            "codigopostal":self.partner_id.zip,
-            "numero_ext":self.partner_id.numero_ext,
-            "estado":self.partner_id.state_id.name.encode('utf-8'),
-            "NIF": self.partner_id.nif.encode('utf-8')
-        }
+            receptor["NIF"] = self.partner_id.nif.encode('utf-8')
+
+        receptor["receptor_id"] = self.rfc_cliente_factura;
+        receptor["compania"] = self.partner_id.name.encode('utf-8');
+        if self.partner_id.street != None and self.partner_id.street != False:
+            receptor["calle"] = self.partner_id.street.encode('utf-8');
         else:
-            receptor = {
-            "receptor_id": self.rfc_cliente_factura,
-            "compania":self.partner_id.name.encode('utf-8'),
-            "calle": self.partner_id.street.encode('utf-8'),
-            "ciudad":self.partner_id.city.encode('utf-8'),
-            "correo":self.partner_id.email.encode('utf-8'),
-            "colonia":self.partner_id.colonia.encode('utf-8'),
-            "codigopostal":self.partner_id.zip,
-            "numero_ext":self.partner_id.numero_ext,
-            "estado":self.partner_id.state_id.name.encode('utf-8'),
-        }
+            receptor["calle"] = "";
+
+        if self.partner_id.city != None and self.partner_id.city != False:
+            receptor["ciudad"] = self.partner_id.city.encode('utf-8');
+        else:
+            receptor["ciudad"] = "";
+
+        if self.partner_id.email != None and self.partner_id.email != False:
+            receptor["correo"] = self.partner_id.email.encode('utf-8');
+        else:
+            receptor["correo"] = "";
+
+        if self.partner_id.colonia != None and self.partner_id.colonia != False:
+            receptor["colonia"] = self.partner_id.colonia.encode('utf-8');
+        else:
+            receptor["colonia"] = "";
+
+        if self.partner_id.zip != None and self.partner_id.zip != False:
+            receptor["codigopostal"] = self.partner_id.zip;
+        else:
+            receptor["codigopostal"] = "";
+
+        if self.partner_id.numero_ext != None and self.partner_id.numero_ext != False:
+            receptor["numero_ext"] = self.partner_id.numero_ext;
+        else:
+            receptor["numero_ext"] = "";
+
+        if self.partner_id.state_id.name != None and self.partner_id.state_id.name != False:
+            receptor["estado"] = self.partner_id.state_id.name;
+        else:
+            receptor["estado"] = "";
+
+
+
+
+        # if self.partner_id.nif!= False:
+        #     receptor = {
+        #     "receptor_id": self.rfc_cliente_factura,
+        #     "compania":self.partner_id.name.encode('utf-8'),
+        #     "calle": self.partner_id.street.encode('utf-8'),
+        #     "ciudad":self.partner_id.city.encode('utf-8'),
+        #     "correo":self.partner_id.email.encode('utf-8'),
+        #     "colonia":self.partner_id.colonia.encode('utf-8'),
+        #     "codigopostal":self.partner_id.zip,
+        #     "numero_ext":self.partner_id.numero_ext,
+        #     "estado":self.partner_id.state_id.name.encode('utf-8'),
+        #     "NIF": self.partner_id.nif.encode('utf-8')
+        # }
+        # else:
+        #     receptor = {
+        #     "receptor_id": self.rfc_cliente_factura,
+        #     "compania":self.partner_id.name.encode('utf-8'),
+        #     "calle": self.partner_id.street.encode('utf-8'),
+        #     "ciudad":self.partner_id.city.encode('utf-8'),
+        #     "correo":self.partner_id.email.encode('utf-8'),
+        #     "colonia":self.partner_id.colonia.encode('utf-8'),
+        #     "codigopostal":self.partner_id.zip,
+        #     "numero_ext":self.partner_id.numero_ext,
+        #     "estado":self.partner_id.state_id.name.encode('utf-8'),
+        # }
 
         cfdi_relacionados = []
         cfdi_relacionado = {
@@ -515,7 +689,7 @@ class localizacion_mexicana(models.Model):
                     #"no_identificacion":str((conceptos_record.product_id.default_code).encode('utf-8')),
                     #"no_identificacion":str((no_identificador).encode('utf-8')),
                     "con_clave_prod_serv": str(conceptos_record.product_id.clave_prod_catalogo_sat_id.c_claveprodserv),
-                    "con_descripcion":"Nota de Credito:Referencia Factura "+str(self.number)+" con motivo de "+str(nota_de_credito),
+                    "con_descripcion":"Nota de Credito:Referencia Factura "+str(self.number)+" con motivo de "+str(nota_de_credito.encode('utf-8')),
                     "impuestosxconcepto": impuestos,
                     }
 
@@ -549,9 +723,9 @@ class localizacion_mexicana(models.Model):
         "fac_metodo_pago_key" : self.metodo_pago_id.c_metodo_pago,
         "fac_tipo_comprobante" : "E" ,
         "cfdi_relacionados": cfdi_relacionados,
-        "fac_tipo_relacion":self.tipo_de_relacion_id.c_tipo_relacion,
+            "fac_tipo_relacion":self.tipo_de_relacion_id.c_tipo_relacion,
         "fac_moneda": self.currency_id.name,
-        "fac_tipo_cambio": self.currency_id.rate,
+        "fac_tipo_cambio": self.currency_id.inverse_rate,
         "fac_lugar_expedicion": self.codigo_postal_id.c_codigopostal,
         "conceptos" :
             conceptos
@@ -648,6 +822,9 @@ class localizacion_mexicana(models.Model):
         #            raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
 
 
+    def cancelaFacturaNuevoProceso(self):
+        self.action_cancel();
+        self.state = 'cancel'
 
     @api.multi
     def cancelar_factura_timbrada(self):
@@ -656,14 +833,6 @@ class localizacion_mexicana(models.Model):
             pagos_timbrados = self.env['account.payment'].search([('ref', '=',self.number), ('uuid', '!=','')])
             if len(pagos_timbrados)>0:
                 raise ValidationError("La factura ya tiene pagos timbrados, no se puede cancelar")
-
-
-
-
-
-        #Cancela factura de Odoo
-        self.action_cancel();
-
 
 
         if self.fac_timbrada == 'Timbrada':
@@ -685,19 +854,19 @@ class localizacion_mexicana(models.Model):
             self._logger.info(response.text)
             json_data = json.loads(response.text)
             if json_data['result']['success'] == True or json_data['result']['success'] == "true":
-                self.state = 'cancel'
-                self.fac_timbrada = "Timbre Cancelado"
+                #self.fac_timbrada = "Timbre Cancelado"
+                if "En proceso" ==json_data['result']['estatus']:
+                    None;
+                    #self.fac_timbrada = "En proceso";
+                else:
+                    #Cancela factura de Odoo
+                    #self.action_cancel();
+                    #Si se cancela sin aceptación, procesa la cancelación
+                    self.fac_timbrada = "Timbre Cancelado";
+                    self.cancelaFacturaNuevoProceso();
 
+                self.fac_estatus_cancelacion = json_data['result']['estatus']
 
-                #self.state = 'timbrado cancelado'
-                #self.fac_timbrada = "Timbre Cancelado";
-
-                #self.state = json_data['result']['estatus']
-                #if "En proceso" ==json_data['result']['estatus']:
-                #    self.fac_timbrada = "En proceso";
-                #else:
-                #    self.fac_timbrada = "Timbre Cancelado";
-                #self.fac_estatus_cancelacion = json_data['result']['estatus']
             else:
                 raise ValidationError(json_data['result']['message'])
 
@@ -717,43 +886,53 @@ class localizacion_mexicana(models.Model):
     #Modifico  el metodo de Validacion Original para que el estado en que termina sea validate en vez de open
     @api.multi
     def invoice_validate(self):
-        #Valida los campos
-        self.validar_campos() 
+        if self.type in ("in_invoice"):
+            super(localizacion_mexicana,self).invoice_validate();
 
-        #Valida las lineas de Factura
-        product_id = []
-        for j in self.invoice_line_ids:
-            product_id.append(j.product_id)
-            #Valida que los impuestos asignados contengan sus correspondientes claves
-            for taxs in j.invoice_line_tax_ids:
-                if taxs.tipo_impuesto_id.descripcion == False:
-                    raise ValidationError(
-                        "FACT00001: El impuesto %s no  tiene asignada ninguna clave del Catalogo del Sat que lo identifique" % (taxs.name))
-            #Valida que los productos asignados cuenten con las claves del sat asignadas
-            for record_product in product_id:
-                if record_product.clave_unidad_clave_catalogo_sat_id.nombre == False:
-                    raise ValidationError("FACT002: Clave de unidad de medida del producto %s no asignada" % (record_product.name))
-                else:
-                    if record_product.clave_prod_catalogo_sat_id.descripcion == False:
+
+        #Sólo lo valida cuando son facturas y notas de crédito emitidas
+        if self.type in ("out_invoice","out_refund"):
+            #Valida los campos
+            self.validar_campos()
+
+            #Valida las lineas de Factura
+            product_id = []
+            for j in self.invoice_line_ids:
+                product_id.append(j.product_id)
+                #Valida que los impuestos asignados contengan sus correspondientes claves
+                for taxs in j.invoice_line_tax_ids:
+                    if taxs.tipo_impuesto_id.descripcion == False:
+                        raise ValidationError(
+                            "FACT00001: El impuesto %s no  tiene asignada ninguna clave del Catalogo del Sat que lo identifique" % (taxs.name))
+                #Valida que los productos asignados cuenten con las claves del sat asignadas
+                for record_product in product_id:
+                    if record_product.clave_unidad_clave_catalogo_sat_id.nombre == False:
                         raise ValidationError("FACT002: Clave de unidad de medida del producto %s no asignada" % (record_product.name))
-                    # else:
-                    #     if record_product.default_code == False:
-                    #         raise ValidationError("FACT002: El campo (referencia interna) del producto %s no  ha sido asignada la cual servira"
-                    #             " como No.Identificacion para la facturacion Electronica, usted puede asignarla dentro del modulo de inventarios en la seccion Informacion General" % (record_product.name))
+                    else:
+                        if record_product.clave_prod_catalogo_sat_id.descripcion == False:
+                            raise ValidationError("FACT002: Clave de unidad de medida del producto %s no asignada" % (record_product.name))
+                        # else:
+                        #     if record_product.default_code == False:
+                        #         raise ValidationError("FACT002: El campo (referencia interna) del producto %s no  ha sido asignada la cual servira"
+                        #             " como No.Identificacion para la facturacion Electronica, usted puede asignarla dentro del modulo de inventarios en la seccion Informacion General" % (record_product.name))
 
-        #Cambia el Estado de Borrador a Validado
-        for invoice in self:
-            #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
-            #because it's probably a double encoding of the same bill/refund
-            if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
-                if self.search([('type', '=', invoice.type), ('reference', '=', invoice.reference), ('company_id', '=', invoice.company_id.id), ('commercial_partner_id', '=', invoice.commercial_partner_id.id), ('id', '!=', invoice.id)]):
-                    raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
-        #return self.write({'state': 'validate'})
-        if self.type == "out_invoice":
-            self.timbrar_factura()
-        else:
-            nota_de_credito_descripcion = self.name
-            self.timbrar_nota_de_credito(nota_de_credito_descripcion)
+            #Cambia el Estado de Borrador a Validado
+            for invoice in self:
+                #refuse to validate a vendor bill/refund if there already exists one with the same reference for the same partner,
+                #because it's probably a double encoding of the same bill/refund
+                if invoice.type in ('in_invoice', 'in_refund') and invoice.reference:
+                    if self.search([('type', '=', invoice.type), ('reference', '=', invoice.reference), ('company_id', '=', invoice.company_id.id), ('commercial_partner_id', '=', invoice.commercial_partner_id.id), ('id', '!=', invoice.id)]):
+                        raise UserError(_("Duplicated vendor reference detected. You probably encoded twice the same vendor bill/refund."))
+            #return self.write({'state': 'validate'})
+
+            #Factura Emitida
+            if self.type == "out_invoice":
+                self.timbrar_factura()
+
+            #Nota de crédito
+            if self.type == "out_refund":
+                nota_de_credito_descripcion = self.name
+                self.timbrar_nota_de_credito(nota_de_credito_descripcion)
 
     @api.multi
     def action_invoice_open_2(self):
@@ -919,10 +1098,13 @@ class localizacion_mexicana(models.Model):
                     if payment.matched_credit_ids:
                         payment_currency_id = all([p.currency_id == payment.matched_credit_ids[0].currency_id for p in payment.matched_credit_ids]) and payment.matched_credit_ids[0].currency_id or False
                 # get the payment value in invoice currency
+                print(payment_currency_id)
                 if payment_currency_id and payment_currency_id == self.currency_id:
                     amount_to_show = amount_currency
                 else:
+                    print( self.currency_id)
                     amount_to_show = payment.company_id.currency_id.with_context(date=payment.date).compute(amount, self.currency_id)
+                    print( amount_to_show)
                 if float_is_zero(amount_to_show, precision_rounding=self.currency_id.rounding):
                     continue
                 payment_ref = payment.move_id.name
@@ -936,8 +1118,8 @@ class localizacion_mexicana(models.Model):
                     'digits': [69, currency_id.decimal_places],
                     'position': currency_id.position,
                     'date': payment.date,
-                    #'payment_id': payment.id,
-                    'payment_id': payment.payment_id.id,
+                    'payment_id': payment.id,
+                    'payment_pago_id': payment.payment_id.id,
                     'move_id': payment.move_id.id,
                     'ref': payment_ref,
                 })

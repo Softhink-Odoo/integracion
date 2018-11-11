@@ -7,10 +7,16 @@
          <field name="inherit_id" ref="account.view_account_payment_invoice_form" />
          <field name="arch" type="xml">
             <xpath expr="//field[@name='communication']" position="after">
-               <field name="formadepagop_id" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
-               <field name="moneda_p" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
                <field name="tipocambiop" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+               <field name="formadepagop_id" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+               <!--<field name="moneda_p" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />-->
+                <field name="moneda_factura" readonly="1" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+               <field name="imp_saldo_ant" options="{'currency_field': 'moneda_factura'}" readonly="1" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+
+                <field name="imp_pagado"  options="{'currency_field': 'moneda_factura'}" readonly="1" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+                <field name="imp_saldo_insoluto"  options="{'currency_field': 'moneda_factura'}" readonly="1" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
                <field name="no_operacion" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
+                <field name="no_parcialidad" readonly="1" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
                <field name="uuid" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
                <field name="ocultar" invisible="1" />
                <field name="timbrar_pago" invisible="1" />
@@ -19,6 +25,9 @@
             <xpath expr="//div[@name='amount_div']" position="after">
                <field name="sustituye_pago"  />
                <field name="pago_sustituye" domain="['&amp;',('ref', '=', ref),('state', '=', 'canceled')]" attrs="{'invisible':[('sustituye_pago', '=', False)]}" options="{'no_create': True, 'no_create_edit':True}"  />
+            </xpath>
+            <xpath expr="//field[@name='currency_id']" position="after">
+               <field name="tipocambio_oper"  />
             </xpath>
 
             <xpath expr="/form/sheet[1]/group[1]/group[2]" position="after">
@@ -54,6 +63,8 @@
             <xpath expr="/form/footer/button[@name='post']" position="replace">
                <button name="Validar_Pago" string="Validar" type="object" class="oe_highlight" icon="fa-check" />
             </xpath>
+
+
 
          </field>
       </record>
@@ -188,15 +199,20 @@
          <field name="arch" type="xml">
             <xpath expr="//field[@name='communication']" position="after">
                <!--  'readonly':[('puede_editar','=',False)],   -->
-               <field name="formadepagop_id" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
                <field name="tipocambiop" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
-               <field name="moneda_p" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />
-               <field name="no_operacion" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
-               <field name="no_parcialidad" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />
+               <field name="formadepagop_id" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
+               <field name="moneda_factura" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
+
+               <!--<field name="moneda_p" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />-->
                <field name="imp_saldo_ant" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
-               <field name="puede_editar" invisible="1"/>
                <field name="imp_pagado" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />
                <field name="imp_saldo_insoluto" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />
+
+               <field name="no_operacion" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}" />
+               <field name="no_parcialidad" attrs="{'invisible':[('timbrar_pago', '=', False)], 'readonly':[('puede_editar','=',False)]}"  />
+
+               <field name="puede_editar" invisible="1"/>
+
 
             </xpath>
 
@@ -231,6 +247,7 @@
 
             <xpath expr="//div[@name='amount_div']" position="after">
                <field name="timbrada" />
+               <field name="tipocambio_oper" />
                <field name="uuid" attrs="{'invisible':[('timbrar_pago', '=', False)]}" />
                <field name="ocultar" invisible="1" />
                <field name="timbrar_pago" invisible="1" />
@@ -263,6 +280,8 @@
                </xpath>
             </field>
         </record>
+
+
 
 
    </data>

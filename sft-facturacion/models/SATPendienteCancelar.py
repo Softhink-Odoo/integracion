@@ -12,8 +12,8 @@ class SATPendienteCancelar(models.Model):
     _name = 'account.sat_pendiente_cancelacion'
     _logger = logging.getLogger(__name__)
 
-    UUID = fields.Char("Clave")
-    estado = fields.Char("Error", default="Pendiente")
+    UUID = fields.Char("UUID")
+    estado = fields.Char("Estado", default="Pendiente")
     fecha_respuesta = fields.Date("Fecha respuesta")
     #usuario_respuesta = fields.Char("Usuario que responde")
     usuario_respuesta = fields.Many2one('res.users', "Usuario que responde")
@@ -55,7 +55,7 @@ class SATPendienteCancelar(models.Model):
     def buscaCanceladasPendientes(self):
         self._logger.info("buscaCanceladasPendientes")
 
-        facturas = self.env['account.invoice'].search([('fac_timbrada', '=', 'En proceso')])
+        facturas = self.env['account.invoice'].search([('fac_estatus_cancelacion', '=', 'En proceso')])
         arr_facturas = [];
         for factura in facturas:
             string=str(str(factura.fac_id).encode("utf-8"))
@@ -88,15 +88,33 @@ class SATPendienteCancelar(models.Model):
             if acuse["estatus"] == 'Cancelado':
                 for factura in facturas:
                     datos = {};
+                    datos["state"] = "timbrada";
                     datos["fac_timbrada"] = 'Timbre Cancelado'
-                    datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+                    #datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+                    if acuse["EstatusCancelacion"] == "Plazo vencido":
+                        datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+                    else:
+                        datos["fac_estatus_cancelacion"] = "Cancelación Aceptada"
+
+                    factura.cancelaFacturaNuevoProceso();
+                    datos["state"] = 'cancel'
                     factura.write(datos);
 
-            if acuse["estatus"] == 'Rechazado':
+            # if acuse["estatus"] == 'Rechazado':
+            #     for factura in facturas:
+            #         datos = {};
+            #         datos["state"] = "timbrada";
+            #         datos["fac_timbrada"] = 'Timbrada'
+            #         datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+            #         factura.write(datos);
+
+            if acuse["estatus"] == 'Vigente' and "EstatusCancelacion" not in acuse:#Si está vigente, es por que rechazó la cancelación
                 for factura in facturas:
                     datos = {};
+                    datos["state"] = "timbrada";
                     datos["fac_timbrada"] = 'Timbrada'
-                    datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+                    #datos["fac_estatus_cancelacion"] = acuse["EstatusCancelacion"]
+                    datos["fac_estatus_cancelacion"] = "Cancelación Rechazada"
                     factura.write(datos);
 
 
@@ -198,8 +216,19 @@ class SATPendienteCancelar(models.Model):
         json_data = json.loads(response.text)
         self._logger.info(response.text)
         fecha  = fields.Datetime.to_string(datetime.datetime.now())
+        compania = self.env.user.company_id
+
+
         if json_data["result"]["success"] == 'true':
             for respuesta in json_data["result"]["acepta_rechaza"][respuesta]:
+                #Busca la factura
+                print(respuesta["uuid"])
+                print(compania.company_registry)
+                pendientes_cncelcion = self.env['account.sat_pendiente_cancelacion'].search([('UUID', '=', respuesta["uuid"] ),('compania_rfc', '=', compania.company_registry )])
+                print(pendientes_cncelcion)
+                if pendientes_cncelcion == None or pendientes_cncelcion == False or pendientes_cncelcion.id == None:
+                    raise ValidationError("Error al obtener factura de UUID: "+respuesta["uuid"])
+
                 data = {};
                 if "error" in respuesta:
                     data["servicio_mensaje"] = respuesta["error"]
@@ -207,7 +236,7 @@ class SATPendienteCancelar(models.Model):
                     data["estado"] = estado_final;
                     data["fecha_respuesta"] = fecha;
                     data["usuario_respuesta"] = self.env.user.id ;
-
-                seleccion.write(data)
+                print(data)
+                pendientes_cncelcion.write(data)
         else:
             raise ValidationError("Error al procesar la solicitud")
