@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="utf-8"?>
+  <odoo>
+    <data>
+        <template id="new_web_page" page="True">
+
+            <!--<t t-call="website.layout">
+                <t t-set="title">Pedido</t>
+                <div class="oe_structure"/>
+                <div class="oe_structure">
+                    <div class="container">
+                        <form action="/autofactura/busca_pedido" method="post" data-success_page="/thanks" class="s_website_form form-horizontal container-fluid mt32 website.layout" >
+                               # add the input fields here
+                               <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="name" required=""/>
+                                     </div>
+                                </div>
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Fecha de pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="fecha_pedido" required=""/>
+                                     </div>
+                                </div>
+
+                              <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Importe total de pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="importe" required=""/>
+                                     </div>
+                                </div>
+
+                               <div class="form-group">
+                                    <div class="col-md-offset-3 col-sm-offset-4 col-sm-8 col-md-7">
+                                        <span id='submit' class="btn btn-primary btn-lg o_website_form_send">Submit</span>
+                                        <span id="o_website_form_result"></span>
+                                    </div>
+                               </div>
+
+
+                        </form>
+                    </div>
+                </div>
+                <div class="oe_structure"/>
+            </t>-->
+
+
+
+                        <!--<form action="/autofactura/busca_pedido" method="post" data-success_page="/thanks" class="s_website_form form-horizontal container-fluid mt32" >
+                               # add the input fields here
+-->
+
+                                <t t-call="website.layout">
+                                    <t t-set="title">Portal de autofactura</t>
+                                    <div class="oe_structure">
+                                        <div class="container">
+                                            <form action="/autofactura/busca_pedido" method="post" class="form-horizontal container-fluid mt32" >
+
+                                                <div class="form-group form-field o_website_form_required_custom">
+                                                   <label class="col-md-3 col-sm-4 control-label" for="name">Compañía:</label>
+                                                     <div class="input-group col-md-7 col-sm-8">
+                                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                                         <select class="form-control o_website_form_input" required="true" name = "compania_cmb">
+                                                            <option value="">Seleccione...</option>
+                                                            <t t-foreach="companias" t-as="compania">
+                                                                <option t-att-value="compania.company_registry"><t t-esc="compania.name"/></option>
+                                                                <!--<p><t t-esc="uso.c_uso_cfdi"/> <t t-esc="uso.descripcion"/></p>-->
+                                                            </t>
+                                                        </select>
+                                                     </div>
+                                                </div>
+
+                                            <div class="form-group form-field o_website_form_required_custom">
+                                               <label class="col-md-3 col-sm-4 control-label" for="name">Pedido</label>
+                                                 <div class="input-group col-md-7 col-sm-8">
+                                                     <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                                     <input type="text" class="form-control o_website_form_input" name="name" required="true"/>
+                                                 </div>
+                                            </div>
+                                            <!--<div class="form-group form-field o_website_form_required_custom">
+                                               <label class="col-md-3 col-sm-4 control-label" for="fecha_pedido">Fecha de pedido</label>
+                                                 <div class="col-md-7 col-sm-8">
+                                                     <input type="date" class="form-control o_website_form_input" name="fecha_pedido" required="true"/>
+                                                 </div>
+                                            </div>-->
+
+
+
+                                          <div class="form-group form-field o_website_form_required_custom">
+                                               <label class="col-md-3 col-sm-4 control-label" for="importe">Importe total de pedido</label>
+                                              <div class="input-group col-md-7 col-sm-8">
+                                                    <span class="input-group-addon primary"><i class="fa fa-money"></i></span>
+                                                    <input type="number"  step="any" class="form-control currency o_website_form_input" id="c2" name="importe" required="true" />
+                                                </div>
+
+                                            </div>
+
+                                           <div class="form-group">
+                                                <div class="col-md-offset-3 col-sm-offset-4 col-sm-8 col-md-7">
+                                                    <input type="submit" class="btn btn-primary o_website_form_send" value="Buscar" ></input>
+                                                </div>
+                                           </div>
+                                            </form>
+                                            <br/><br/>
+                                            <div >
+                                                <div >
+                                                    <img src="https://sft-facturacion.com/wp-content/uploads/2018/09/banner_3.jpg" class="rounded mx-auto d-block  col-md-7 col-sm-7" alt="Sft-Facturación"/>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </t>
+
+                            <!--<div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="name"/>
+                                     </div>
+                                </div>
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="fecha_pedido">Fecha de pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="fecha_pedido" />
+                                     </div>
+                                </div>
+
+                              <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="importe">Importe total de pedido</label>
+                                     <div class="col-md-7 col-sm-8">
+                                         <input type="text" class="form-control o_website_form_input" name="importe" />
+                                     </div>
+                                </div>-->
+
+
+                        <!--</form>-->
+
+
+        </template>
+
+      <template id="muestra_pedido" page="True">
+          <t t-call="website.layout">
+                <t t-set="title">Pedido</t>
+                <div class="oe_structure"/>
+                <div class="oe_structure">
+                    <!--<div class="container">-->
+
+                        <form action="/autofactura/generar_factura" method="post" data-success_page="/thanks" class="form-horizontal container-fluid mt32" >
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Compañía emisora</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="pedido.company_id.name"
+                                                t-att-value="pedido.company_id.name" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">RFC</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="emisor_rfc"
+                                                t-att-value="pedido.company_id.company_registry" required="true"/>
+                                     </div>
+                                </div>
+
+
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                       <label class="col-md-3 col-sm-4 control-label" for="name">Pedido</label>
+                                         <div class="input-group col-md-7 col-sm-8">
+                                             <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                             <input type="text" readonly="true" class="form-control o_website_form_input" name="pedido"
+                                                    t-att-value="pedido.referencia" required="true"/>
+                                         </div>
+                                    </div>
+
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                       <label class="col-md-3 col-sm-4 control-label" for="name">Monto</label>
+                                         <div class="input-group col-md-7 col-sm-8">
+                                             <span class="input-group-addon primary"><i class="fa fa-money"></i></span>
+                                             <input type="number" readonly="true" class="form-control o_website_form_input" name="importe"
+                                                    t-att-value="pedido.amount_total" required="true"/>
+                                         </div>
+                                    </div>
+                                </div>
+
+
+
+
+                                <div class="col-sm-6">
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                       <label class="col-md-3 col-sm-4 control-label" for="name">Razón Social</label>
+                                         <div class="input-group col-md-7 col-sm-8">
+                                             <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                             <input type="text" class="form-control o_website_form_input" name="receptor_razon_social"
+                                                    t-att-value="pedido.partner_id.name" required="true"/>
+                                         </div>
+                                    </div>
+
+
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">RFC</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <input type="text" class="form-control o_website_form_input" name="receptor_rfc"
+                                                t-att-value="pedido.partner_id.rfc_cliente" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Email</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <input type="email" class="form-control o_website_form_input" name="receptor_email"
+                                                t-att-value="pedido.partner_id.email" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Uso de CFDI</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <select class="form-control o_website_form_input" required="true" name = "uso_cmb">
+                                            <option value="">Seleccione...</option>
+                                            <t t-foreach="usos_cfdi" t-as="uso">
+                                                <option t-att-value="uso.c_uso_cfdi"><t t-esc="uso.descripcion"/></option>
+                                                <!--<p><t t-esc="uso.c_uso_cfdi"/> <t t-esc="uso.descripcion"/></p>-->
+                                            </t>
+                                        </select>
+                                     </div>
+                                </div>
+
+                            <!--<div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Método de pago</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <select class="form-control o_website_form_input" required="true" name = "metodo_pago_cmb">
+                                            <option value="">Seleccione...</option>
+                                            <t t-foreach="metodos_pago" t-as="metodo">
+                                                <option t-att-value="metodo.c_metodo_pago"><t t-esc="metodo.descripcion"/></option>
+
+                                            </t>
+                                        </select>
+                                     </div>
+                                </div>-->
+
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="forma_pago_cmb">Forma de pago</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary"><i class="fa fa-arrow-circle-right fa-fw"></i></span>
+                                         <select class="form-control o_website_form_input" required="true" name = "forma_pago_cmb">
+                                            <option value="">Seleccione...</option>
+                                            <t t-foreach="formas_pago" t-as="forma">
+                                                <option t-att-value="forma.c_forma_pago"><t t-esc="forma.descripcion"/></option>
+                                                <!--<p><t t-esc="uso.c_uso_cfdi"/> <t t-esc="uso.descripcion"/></p>-->
+                                            </t>
+                                        </select>
+                                     </div>
+                                </div>
+
+                                    <div class="form-group">
+                                                <div class="col-md-offset-3 col-sm-offset-4 col-sm-8 col-md-7">
+                                                    <input type="submit" class="btn btn-primary o_website_form_send" value="Generar Factura" ></input>
+                                                </div>
+                                           </div>
+                                </div>
+                            </div>
+
+
+
+
+
+
+
+                        </form>
+                    <!--</div>-->
+                </div>
+                <div class="oe_structure"/>
+            </t>
+
+        </template>
+
+
+
+
+
+        <template id="factura_timbrada" page="True">
+          <t t-call="website.layout">
+                <t t-set="title">Factura generada</t>
+                <div class="oe_structure"/>
+                <div class="oe_structure">
+                        <div class="s_website_form form-horizontal container-fluid mt32" >
+
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Compañía emisora</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="company_id.name"
+                                                t-att-value="factura.company_id.name" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">RFC</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="emisor_rfc"
+                                                t-att-value="factura.rfc_emisor" required="true"/>
+                                     </div>
+                                </div>
+
+
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                       <label class="col-md-3 col-sm-4 control-label" for="name">Observaciones</label>
+                                         <div class="input-group col-md-7 col-sm-8">
+                                             <span class="input-group-addon primary">E</span>
+                                             <input type="text" readonly="true" class="form-control o_website_form_input" name="Observaciones"
+                                                    t-att-value="factura.observaciones" required="true"/>
+                                         </div>
+                                    </div>
+
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                       <label class="col-md-3 col-sm-4 control-label" for="name">Monto</label>
+                                         <div class="input-group col-md-7 col-sm-8">
+                                             <span class="input-group-addon primary">$</span>
+                                             <input type="number" readonly="true" class="form-control o_website_form_input" name="importe"
+                                                    t-att-value="factura.amount_total" required="true"/>
+                                         </div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-6">
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">RFC</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="rfc_cliente"
+                                                t-att-value="factura.partner_id.rfc_cliente" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Email</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="email" readonly="true" class="form-control o_website_form_input" name="email"
+                                                t-att-value="factura.partner_id.email" required="true"/>
+                                     </div>
+                                </div>
+
+                                <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Uso de CFDI</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="uso_cfdi"
+                                                t-att-value="factura.uso_cfdi_id.descripcion" required="true"/>
+                                     </div>
+                                </div>
+
+                            <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="name">Método de pago</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="metodo_pago"
+                                                t-att-value="factura.metodo_pago_id.descripcion" required="true"/>
+                                     </div>
+                                </div>
+
+                                    <div class="form-group form-field o_website_form_required_custom">
+                                   <label class="col-md-3 col-sm-4 control-label" for="forma_pago_cmb">Forma de pago</label>
+                                     <div class="input-group col-md-7 col-sm-8">
+                                         <span class="input-group-addon primary">E</span>
+                                         <input type="text" readonly="true" class="form-control o_website_form_input" name="forma_pago"
+                                                t-att-value="factura.forma_pago_id.descripcion" required="true"/>
+                                     </div>
+                                </div>
+
+
+                                        <!--<input type="hidden" readonly="true" class="form-control o_website_form_input" name="fac_id"
+                                                t-att-value="factura.fac_id" required="true"/>
+                                        <input type="text" readonly="true" class="form-control o_website_form_input" name="fac_id"
+                                                t-att-value="url_descarga_pdf" required="true"/>-->
+                                    <div class="form-group">
+
+                                        <a t-att-href="url_descarga_pdf" target="_blank" id="code" type="submit" class="btn btn-danger btn-lg">
+                                            <span class="fa fa-file-pdf-o">
+                                            </span> Descargar PDF</a>
+                                        <a t-att-href="url_descarga_xml" target="_blank" id="code" type="submit" class="btn btn-primary btn-lg">
+                                            <span class="fa fa-file-text-o"></span> Descargar XML</a>
+                                        <a href="/autofactura/autofactura" class="btn btn-success btn-lg">Nueva Factura</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                            <br/><br/>
+                            <div class="container" >
+                                <div >
+                                    <img src="https://sft-facturacion.com/wp-content/uploads/2018/09/banner_3.jpg" class="rounded mx-auto d-block  col-md-7 col-sm-7" alt="Sft-Facturación"/>
+                                </div>
+                            </div>
+
+                    </div>
+
+
+
+
+                </div>
+                <div class="oe_structure"/>
+            </t>
+
+        </template>
+
+
+
+
+
+
+
+
+        <template id="pedido_no_encontrado" page="True">
+          <t t-call="website.layout">
+                <t t-set="title">No se encontró el pedido</t>
+                <div class="oe_structure">
+                    <div class="container">
+                        <div class="s_website_form form-horizontal container-fluid mt32" >
+                            <div class="alert alert-danger" role="alert">
+                              <strong>Error!</strong> <t t-esc="mensaje"/>
+                            </div>
+
+                            <div class="form-group">
+
+                                <button onclick="window.history.back();" class="btn btn-default o_website_form_send">Regresar</button>
+                            </div>
+
+                        </div>
+
+
+
+
+                    </div>
+                </div>
+                <div class="oe_structure"/>
+
+            </t>
+
+        </template>
+
+        <template id="assets" inherit_id="point_of_sale.assets">
+           <xpath expr="." position="inside">
+               <script type="text/javascript" src="/autofactura/static/src/js/sft-autofactura.js"></script>
+           </xpath>
+         </template>
+
+    </data>
+  </odoo>

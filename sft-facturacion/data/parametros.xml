@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<odoo>
+
+    <data>
+        <record id="id_cron_catalogos_id" model="ir.cron">
+            <field name="name">Proceso de cancelación</field>
+            <field name="active">True</field>
+            <field name="priority">5</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="numbercall">-1</field>
+            <field name="model">account.sat_pendiente_cancelacion</field>
+            <field name="function">consulta_automatica_sft</field>
+        </record>
+    </data>
+</odoo>

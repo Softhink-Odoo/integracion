@@ -44,8 +44,11 @@ class AccountPayment(models.Model):
     @api.one
     def compute_default(self):
         print("compute_default")
-        self.imp_saldo_ant = self.invoice_ids.residual;
-        self.moneda_factura = self.invoice_ids.invoices.currency_id.name;
+        if self.invoice_ids != None and self.invoice_ids != False:
+            self.imp_saldo_ant = self.invoice_ids.residual;
+            if hasattr(self.invoice_ids,"invoices") and self.invoice_ids.invoices != None  and self.invoice_ids.invoices != False\
+                    and self.invoice_ids.invoices != None and self.invoice_ids.invoices.currency_id != None:
+                self.moneda_factura = self.invoice_ids.invoices.currency_id.name;
 
     id_banco_seleccionado= fields.Integer('id_banco_seleccionado')
     formadepagop_id = fields.Many2one('catalogos.forma_pago',string='Forma de pago')

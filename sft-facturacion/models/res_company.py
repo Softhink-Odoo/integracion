@@ -37,19 +37,31 @@ class ResCompany(models.Model):
                     msg=  msg+"-Sexo (Masculino o Femenino).\n"
                     msg = msg+"-Entidad Federativa de nacimiento (Estado en el que fue registrado al nacer)."
                     raise ValidationError(msg)
-    
+
     @api.onchange('street','company_registry','city','state_id','country_id','zip')
     def Actualizar_Datos_fiscales_de_la_compania_en_las_Facturas_de_Venta(self):
-        invoices = self.env['account.invoice'].search([('state', '=','draft')])
-        for invoice in invoices:
-            invoice.write({'compania_calle': self.street})
-            invoice.write({'compania_ciudad': self.city})
-            lugar_de_expedicion = self.env['catalogos.codigo_postal'].search([('c_codigopostal', '=',self.zip)])
-            if lugar_de_expedicion.id == False:
-                raise ValidationError("Favor de Revisar el Codigo Postal ya que no se encuentra en el catalogo del sat")
-            invoice.write({'codigo_postal_id': lugar_de_expedicion.id})
-            invoice.write({'compania_estado': self.state_id.name})
-            invoice.write({'rfc_emisor': self.company_registry})
-            invoice.write({'compania_pais': self.country_id.name})
 
-            
+        lugar_de_expedicion = self.env['catalogos.codigo_postal'].search([('c_codigopostal', '=',self.zip)])
+        if lugar_de_expedicion.id == False:
+            raise ValidationError("Favor de Revisar el Codigo Postal ya que no se encuentra en el catalogo del sat")
+
+        self._cr.execute("update account_invoice "
+                        " set compania_calle= %s,"
+                        "  compania_ciudad = %s, "
+                        "  codigo_postal_id = %s, "
+                        "  compania_estado = %s, "
+                        "  rfc_emisor = %s, "
+                        "  compania_pais = %s "
+                        "  where state = 'draft' and type = 'out_invoice' ", (self.street, self.city, lugar_de_expedicion.id, self.state_id.name, self.company_registry, self.country_id.name, ) )
+
+
+        # invoices = self.env['account.invoice'].search([('state', '=','draft')])
+        # for invoice in invoices:
+        #     invoice.write({'compania_calle': self.street})
+        #     invoice.write({'compania_ciudad': self.city})
+        #
+        #     invoice.write({'codigo_postal_id': lugar_de_expedicion.id})
+        #     invoice.write({'compania_estado': self.state_id.name})
+        #     invoice.write({'rfc_emisor': self.company_registry})
+        #     invoice.write({'compania_pais': self.country_id.name})
+
