@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "SFT-Autofactura",
+    'name': "SFT-Autofactura CFDI",
 
     'summary': """
         Sft-Facturación | Complemento de autofactura""",
